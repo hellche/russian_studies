@@ -12,7 +12,7 @@ website:
       - about.qmd
     right:
       - icon: github
-        href: https://hellche.github.io/grant_applications/
+        href: https://github.com/hellche/russian_studies
         aria-label: GitHub
 
 format:
