@@ -1,0 +1,834 @@
+---
+title: "I. PRODUCTION OF PUBLICATIONS"
+---
+
+```{r setup}
+#| include=FALSE
+knitr::opts_chunk$set(echo = FALSE,  warning = FALSE, message =  FALSE) 
+```
+
+```{r packages}
+library(tidyverse)
+library(expss)
+library(FactoMineR)
+library(factoextra)
+library(RColorBrewer)
+library(stringr)
+library(stringi)
+library(haven)
+library(readr)
+library(table1)
+library(sjlabelled)
+library(ggpubr)
+library(ggridges)
+library(ggsignif)
+library(patchwork)
+library(tibble)
+library(ggpmisc)
+library(readxl)
+library(data.table)
+library(ggthemes)
+library(knitr)
+# options(kableExtra.latex.load_packages = FALSE)
+library(kableExtra)
+library(DT)
+library(tidyquant)
+library(plotly)
+
+```
+
+```{r functions}
+pvalue <- function(x, ...) {
+    # Construct vectors of data y, and groups (strata) g
+    y <- unlist(x)
+    g <- factor(rep(1:length(x), times=sapply(x, length)))
+    if (is.numeric(y)) {
+        # For numeric variables, perform a standard 2-sample t-test
+        p <- t.test(y ~ g)$p.value
+    } else {
+        # For categorical variables, perform a chi-squared test of independence
+        p <- chisq.test(table(y, g),correct = TRUE, simulate.p.value = TRUE, B = 10000)$p.value
+    }
+    # Format the p-value, using an HTML entity for the less-than sign.
+    # The initial empty string places the output on the line below the variable label.
+    c("", sub("<", "&lt;", format.pval(p, digits=3, eps=0.001)))
+}
+
+#simulate.p.value = FALSE, B = 2000
+
+all_test <- function(x, ...) {
+    # Construct vectors of data y, and groups (strata) g
+    y <- unlist(x)
+    g <- factor(rep(1:length(x), times=sapply(x, length)))
+    if (is.numeric(y)) {
+        # For numeric variables, perform a standard 2-sample t-test
+        p <- t.test(y ~ g)$p.value
+        t <- t.test(y ~ g)$statistic
+        par <- t.test(y ~ g)$parameter
+    } else {
+        # For categorical variables, perform a chi-squared test of independence
+        p <- chisq.test(table(y, g))$p.value
+        t <- chisq.test(table(y, g))$statistic
+        par <- chisq.test(table(y, g))$parameter
+    }
+    # Format the p-value, using an HTML entity for the less-than sign.
+    # The initial empty string places the output on the line below the variable label.
+    c("", paste0(sub("<", "&lt;", format.pval(p, digits=3, eps=0.001)), "; val test stat = " , round(t, digits=3), "; df =" , round(par, digits=3)))
+}
+```
+
+```{r data}
+data <- read_csv("data/data_clean.csv")
+```
+
+```{r colors}
+myColors <- brewer.pal(12, "Paired")
+myColors <- replace(myColors, myColors == "#FFFF99", "#ffdb4d")
+myColors <- replace(myColors, myColors == "#FDBF6F", "#fb9004")
+myColors <- replace(myColors, myColors == "#6A3D9A", "#a6a6a6")
+myColors <- replace(myColors, myColors == "#fb9004", "#9358a7")
+
+myColors <- c(myColors, "#cc0066")
+
+areas <- data %>%
+  separate_rows(research_areas, sep = ";") %>%
+  mutate(research_areas = str_trim(research_areas, "both")) %>%
+  group_by(research_areas) %>%
+  mutate(research_areas = case_when(n() < 700 ~ "Other",
+                                    TRUE ~ research_areas)) %>%
+  count() %>% pull(research_areas)
+
+my_color <- setNames(myColors, areas)
+```
+
+::: callout-tip
+## Важные замечания
+
+В документе всё построено на `full_data_precise_original`. Произведена чистка стран, институций по доку ТЗ Катерины. Со странами проблем нет, Инстритуции всё еще не унифицированы полностью.
+
+Произведено вменение институциям единственной страны (через присвоение моды). Произведено вменение стране единственного региона (через присвоение моды). 
+
+Если исследовательская область выглядит как список, например, Political Science; Area Studies, тогда публикация дублируется и считается как +1 публикация для каждой из областей в списке. 
+
+Если исследовательская область выглядит как список, ['SSCI', 'AHCI'], тогда публикация дублируется и считается как +1 публикация для каждой из областей в списке.
+
+Фракционализация с разбиением публикации на доли проводилась только для институтский в разделе I, пункте (7) (показаны таблицы и с фракционализацией и без).
+:::
+
+## 1. Динамика и прирост
+
+На Fig 1 видно, что публикации в \['SSCI'\] на протяжение 1990-2007 годов варьировались в диапазоне до \~400 публикаций в год. После 2008 года рубеж в 400 публикаций стабильно преодолен и количество публикаций в год нарастало вплоть до \~600 в 2020.
+
+
+```{r}
+df <- data %>% distinct(UT, .keep_all = TRUE) %>% 
+  
+  # split fields
+  separate_rows(field, sep=";") %>% 
+  
+  select(year, field) %>% 
+  group_by(year, field) %>% count() %>% ungroup() %>% 
+  group_by(field) %>% arrange(field, year) %>% 
+  mutate(change_to_1990 = 100 * n / n[year==1990]) 
+
+ylim.prim <- c(0,600)   # in this example, precipitation
+ylim.sec <- c(60, 200)    # in this example, temperature
+
+b <- diff(ylim.prim)/diff(ylim.sec)
+a <- ylim.prim[1] - (b*ylim.sec[1]) 
+
+ggplot(df, aes(x = year)) + 
+  geom_col(aes(y = n), fill = "grey") +
+  geom_hline(yintercept = a + 100*b, linetype = "dashed",  color = "blue") +
+
+  # geom_line(aes(y = a + grow*b), size = 1, color = "blue") +
+  ggalt::geom_xspline(aes(y = a + change_to_1990*b), 
+                      size = 0.7, color = "blue", spline_shape=-0.4) +
+  # geom_point(aes(y = a + change_to_1990*b), colour="black", pch=21, size=2) +
+  scale_y_continuous(sec.axis = sec_axis(~ (. - a)/b, name = "Change to 1990",
+                     labels = function(b) {paste0(b, "%")})) + 
+  
+  scale_x_continuous(
+        labels = as.character(seq(min(df$year), max(df$year), by = 1)), 
+        breaks = seq(min(df$year), max(df$year), by = 1), 
+        expand=c(0,0)
+    ) +
+  facet_wrap(~field, nrow = 1) +
+  theme_bw() +
+  theme(axis.title.y = element_text(color = "grey")) +
+  theme(axis.line.y.right = element_line(color = "blue"), 
+        axis.ticks.y.right = element_line(color = "blue"),
+        axis.title.y.right = element_text(color = "blue", vjust=3)) + 
+  labs(y = "Number of papers", subtitle = "1990 за 100%", 
+       title = "Fig 1: Число статей + настоколь это число росло/падало по сравнению с 1990") +
+  theme(legend.position = "none",
+        legend.justification ='left') + 
+  theme(axis.title.x = element_blank(),
+        panel.grid = element_blank()) +
+  theme(strip.background = element_rect(fill = NA))+
+  theme(strip.text = element_text(colour = 'black')) +
+  theme(strip.text = element_text(size = 7)) +
+  theme(axis.text.x = element_text(size = 6, angle = 90, vjust = 0.5)) +
+  theme(axis.text.y.left = element_text(angle = 90, hjust = 0.5)) +
+  theme(axis.text.y.right = element_text(color = "blue", angle = 270, hjust = 0.5)) +
+  theme(axis.text.y = element_text(size = 8)) +
+  theme(legend.title = element_blank()) 
+```
+
+## 2. Динамика по областям
+
+### Все области
+
+Из Fig 2 хорошо видно структуру Рашн стадис. Видно, что по политологии, экономики, истории и литературе написан основной массив всех текстов за 1990-2020. Но динамика считывается тут плохо, посмотрим на Fig 3, из которого видно, что История сильно приросла в процентах от всех областей. Так же доля социологии, лингвистики и философии приросли. Доли Арт и литературы снизились. Очень стабильную долю на за 1990-2020 держит только политология (в районе 20%). На самом деле еще экономика, кроме всплеска доли в конце 90-х (может интерес вызван исследованиям кризиса 1998)
+
+
+```{r}
+#| fig.dim = c(8.8, 7)
+
+p <- data %>% distinct(UT, .keep_all = TRUE) %>% 
+  select(year,research_areas,field) %>% 
+  
+  # разворачиваем research_areas
+  separate_rows(research_areas, sep=";") %>% 
+  mutate(research_areas = str_trim(research_areas, "both")) %>% 
+  
+  group_by(research_areas) %>% 
+  mutate(research_areas = case_when(n() < 400 ~ "Other (< 400 papers)",
+                                    TRUE ~ research_areas)) %>% ungroup() %>% 
+  group_by(year, research_areas) %>% count() %>% ungroup() %>% 
+  group_by(year) %>% 
+  mutate(perc = round(100 * n / sum(n), 2)) %>% 
+
+  ggplot(aes(x = year, y = perc, fill = research_areas)) + 
+  geom_area(alpha = 0.8 , size = 0.5, colour = "black") +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  labs(title = "Fig 2: Все области сразу") +
+  theme_bw() +
+  scale_fill_manual(values = my_color, limits = force) +
+  theme(panel.grid = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_text(size = 8),
+        axis.text.y = element_text(size = 8)) 
+
+ggplotly(p)
+```
+
+### SSCI и AHCI
+
+Динамика перерисована дальше в (2с), нагляднее. Столбики с числом статей с раскраской по областям малоинформативны в сцепке с графиком долей, лучше убрать раскраску и оставлять серыми.
+
+distinct(UT) split field split research_areas
+
+```{r}
+#| fig.dim = c(8, 5)
+
+df1 <- data %>% distinct(UT, .keep_all = TRUE) %>% 
+  select(year, research_areas, field) %>% 
+  
+  # split research_areas
+  separate_rows(research_areas, sep=";") %>% 
+  mutate(research_areas = str_trim(research_areas, "both")) %>% 
+  # split field
+  separate_rows(field, sep=";") %>% 
+  
+  filter(field == "SSCI") %>% 
+  group_by(research_areas) %>% 
+  mutate(research_areas = case_when(n() < 400 ~ "Other (< 400 papers)",
+                                    TRUE ~ research_areas)) %>% ungroup() %>% 
+  group_by(year, research_areas) %>% count() %>% ungroup() %>% 
+  group_by(year) %>% mutate(perc = round(100 * n / sum(n), 2))
+
+df2 <- data %>% distinct(UT, .keep_all = TRUE) %>% 
+  select(year, research_areas, field) %>% 
+  
+  # split research_areas
+  separate_rows(research_areas, sep=";") %>% 
+  mutate(research_areas = str_trim(research_areas, "both")) %>% 
+  # split field
+  separate_rows(field, sep=";") %>% 
+  
+  filter(field == "AHCI") %>% 
+  group_by(research_areas) %>% 
+  mutate(research_areas = case_when(n() < 400 ~ "Other (< 400 papers)",
+                                    TRUE ~ research_areas)) %>% ungroup() %>% 
+  group_by(year, research_areas) %>% count() %>% ungroup() %>% 
+  group_by(year) %>% mutate(perc = round(100 * n / sum(n), 2))
+
+
+p1 <- ggplot(df1, aes(x = year, y = n, fill = research_areas)) + 
+  geom_col(size = 0.3, colour = "white") +
+  theme_bw() +
+  scale_fill_manual(values = my_color, limits = force) +
+  labs(title = "SSCI areas",
+       subtitle = "Кол-во статей") +
+  theme(panel.grid = element_blank(),
+        panel.grid.major.y = element_line(size = 0.1, color = "grey70", linetype = "solid"),
+        strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = 'black', size = 7),
+        legend.title = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_text(size = 7, angle = 0, vjust = 0.5),
+        axis.text.y = element_text(size = 7, angle = 90, vjust = 0.5)) 
+
+
+p2 <- ggplot(df2, aes(x = year, y = n, fill = research_areas)) + 
+  geom_col(size = 0.3, colour = "white") +
+  theme_bw() +
+  scale_fill_manual(values = my_color, limits = force) +
+  labs(title = "AHCI areas",
+       subtitle = "Кол-во статей") +
+  theme(panel.grid = element_blank(),
+        panel.grid.major.y = element_line(size = 0.1, color = "grey70", linetype = "solid"),
+        strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = 'black', size = 7),
+        legend.title = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_text(size = 7, angle = 0, vjust = 0.5),
+        axis.text.y = element_text(size = 7, angle = 90, vjust = 0.5)) 
+
+
+ggplotly(p1)
+ggplotly(p2)
+```
+
+Это то же самое что доли из (2b), просто наглядно в динамике. Из графиков ниже мы видим, что в SSCI основное это политология и экономика, доли ведут себя очень стабильно, кроме всплеска доли экономики в конце 90%. В AHCI видна смена подобластей - доля Арт и литературы со временем снижается, доля истории и философии наоборот растет. В комбо SSCI + AHCI снижается Area Stud.
+
+distinct(UT) split field split research_areas
+
+```{r}
+#| eval=FALSE
+
+## Как множатся строки после двойного сплита
+
+df2 <- data %>% 
+  group_by(UT) %>% mutate(n_aut = n()) %>% ungroup() %>% 
+  distinct(UT, .keep_all = TRUE) %>% 
+  select(UT, n_aut, year, research_areas, field) %>% 
+  filter(UT == "WOS:000515550800007") %>% 
+  ## разворачиваем research_areas
+  separate_rows(research_areas, sep=";") %>% 
+  mutate(research_areas = str_trim(research_areas, "both")) %>% 
+  ## разворачиваем field
+  separate_rows(field, sep=";")
+  
+```
+
+```{r}
+#| fig.dim = c(8,5)
+
+df1 <- data %>% distinct(UT, .keep_all = TRUE) %>% 
+  select(year, research_areas, field) %>% 
+  
+  # split research_areas
+  separate_rows(research_areas, sep=";") %>% 
+  mutate(research_areas = str_trim(research_areas, "both")) %>% 
+  # split field
+  separate_rows(field, sep=";") %>% 
+  
+  filter(field == "SSCI") %>% 
+  group_by(research_areas) %>%
+  mutate(research_areas = case_when(n() < 400 ~ "Other (< 400 papers)",
+                                    TRUE ~ research_areas)) %>% ungroup() %>%
+  group_by(year, research_areas) %>% count() %>% ungroup() %>% 
+  group_by(year) %>% mutate(perc = n / sum(n))
+
+df2 <- data %>% distinct(UT, .keep_all = TRUE) %>% 
+  select(year, research_areas, field) %>% 
+  
+  # split research_areas
+  separate_rows(research_areas, sep=";") %>% 
+  mutate(research_areas = str_trim(research_areas, "both")) %>% 
+  # split field
+  separate_rows(field, sep=";") %>% 
+  
+  filter(field == "AHCI") %>% 
+  group_by(research_areas) %>%
+  mutate(research_areas = case_when(n() < 400 ~ "Other (< 400 papers)",
+                                    TRUE ~ research_areas)) %>% ungroup() %>%
+  group_by(year, research_areas) %>% count() %>% ungroup() %>% 
+  group_by(year) %>% mutate(perc = n / sum(n))
+
+p1 <- df1 %>% mutate(perc = perc * 100) %>% 
+  ggplot(aes(x = year, perc, color = research_areas, group = research_areas)) + 
+  geom_line(alpha = 0.5, size = 0.5) +
+  geom_point(alpha = 0.5, size = 0.5) +
+  geom_ma(ma_fun = SMA, n = 3, linetype = "solid", size = 1.1) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  facet_wrap( ~ research_areas, ncol = 4, scales = "free_y") +
+  labs(title = "Динамика внутри SSCI areas",
+      subtitle = "светалая линия - реальные значения; темная линия - скользящее среднее (шаг = 3 года)") +
+  scale_color_manual(values = my_color, limits = force) +
+  guides(color = guide_legend(override.aes = list(size = 5))) + 
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        panel.grid.major.x = element_line(size = 0.1, color = "grey70", linetype = "solid"),
+        panel.grid.major.y = element_line(size = 0.1, color = "grey70", linetype = "solid"),
+        strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = 'black', size = 8),
+        legend.position = "none",
+        axis.title = element_blank(),
+        axis.text.x = element_text(size = 8, angle = 45, vjust = 0.5),
+        axis.text.y = element_text(size = 8)) 
+
+p2 <- df2 %>% mutate(perc = perc * 100) %>% 
+  ggplot(aes(x = year, perc, color = research_areas, group = research_areas)) + 
+  geom_line(alpha = 0.5, size = 0.5) +
+  geom_point(alpha = 0.5, size = 0.5) +
+  geom_ma(ma_fun = SMA, n = 3, linetype = "solid", size = 1.1) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  facet_wrap( ~ research_areas, ncol = 4, scales = "free_y") +
+  labs(title = "Динамика внутри AHCI areas",
+      subtitle = "светалая линия - реальные значения; темная линия - скользящее среднее (шаг = 3 года)") +
+  scale_color_manual(values = my_color, limits = force) +
+  guides(color = guide_legend(override.aes = list(size = 5))) + 
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        panel.grid.major.x = element_line(size = 0.1, color = "grey70", linetype = "solid"),
+        panel.grid.major.y = element_line(size = 0.1, color = "grey70", linetype = "solid"),
+        strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = 'black', size = 8),
+        legend.position = "none",
+        axis.title = element_blank(),
+        axis.text.x = element_text(size = 8, angle = 45, vjust = 0.5),
+        axis.text.y = element_text(size = 8)) 
+
+p1
+p2
+
+```
+
+## 3. Регионы
+
+`Other` это `Africa`, `Americas`, `Oceania`.
+
+Основной массив текстов раньше писался в США (рис А). Но доля США стабильно падала, доля России и Европы и Азии растет (рис С). Для США падает не потому что они стали писать меньше статей, они пишут столько же (рис. В). Это просто Россия и Европа в штуках стали больше писать.
+
+distinct(UT)
+
+```{r}
+df1 <- data %>% distinct(UT, .keep_all = TRUE) %>% 
+filter(region != "Unknown")  %>% 
+  group_by(year, region) %>% count() %>% ungroup() %>% 
+  group_by(year) %>% 
+  mutate(perc = round(100 * n / sum(n), 2)) 
+
+df2 <- data %>% distinct(UT, .keep_all = TRUE) %>% 
+filter(region != "Unknown")  %>% 
+  group_by(year, region) %>% count() %>% ungroup() %>% 
+  group_by(year) %>% 
+  mutate(perc = n / sum(n))
+
+p1 <-ggplot(df1, aes(x = year, y = n, color = region)) + 
+  # ggalt::geom_xspline(alpha = 0.8, size = 1, spline_shape = -0.6) +
+  geom_line(size = 0.6) +
+  geom_point(size = 1.1) +
+  # labs(title = "Кол-во статей") +
+  theme_bw() +
+  scale_color_brewer(palette = "Paired") +
+  guides(color=guide_legend(override.aes = list(size = 5))) + 
+  theme(panel.grid.major.x = element_line(size = 0.1, color = "grey90", linetype = "solid"),
+        panel.grid.major.y = element_line(size = 0.1, color = "grey90", linetype = "solid"),
+        strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = 'black', size = 8),
+        axis.title = element_blank(),
+        axis.text.x = element_text(size = 7, angle = 0, vjust = 0.5),
+        axis.text.y = element_text(size = 7, angle = 90, vjust = 0.5)) 
+
+p2 <- df2 %>% mutate(perc = perc * 100) %>% 
+  ggplot(aes(x = year, perc, color = region, group = region)) + 
+  geom_line(size = 0.6) +
+  geom_point(size = 1.1) +
+  scale_y_continuous(labels = function(x) paste0(x, "%"),
+                     breaks = c(0, 15, 30, 45, 60)) +
+  # labs(title = "Доля") +
+  theme_bw() +
+  scale_color_brewer(palette = "Paired") +
+  guides(color=guide_legend(override.aes = list(size = 5))) + 
+  theme(panel.grid.major.x = element_line(size = 0.1, color = "grey90", linetype = "solid"),
+        panel.grid.major.y = element_line(size = 0.1, color = "grey90", linetype = "solid"),
+        strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = 'black', size = 8),
+        axis.title = element_blank(),
+        axis.text.x = element_text(size = 7, angle = 0, vjust = 0.5),
+        axis.text.y = element_text(size = 7, angle = 90, vjust = 0.5)) 
+
+annotations = list( 
+  list( 
+    x = 0.25, y = 1.0,  
+    text = paste0('(А) Кол-во статей'),
+    xref = "paper", yref = "paper",  
+    xanchor = "center", yanchor = "bottom", showarrow = FALSE),  
+  list( 
+    x = 0.75, y = 1,  
+    text = paste0('(B) Доля'),
+    xref = "paper", yref = "paper",  
+    xanchor = "center", yanchor = "bottom", showarrow = FALSE))
+
+subplot(style(ggplotly(p1), showlegend = F), 
+        style(ggplotly(p2), showlegend = T)) %>% 
+   layout(annotations = annotations)
+```
+
+## 4. Специализация регионов
+
+На рис А в глаза бросается относительная большая специализация России на Философии? (это ЛОГОС???))))) социологии, а так же относительно большая специализация США на литературе. У России в структуре относительно мало Истории, а у США экономики.
+
+На рис В мало что видно, он перерисован и на рис С уже динамика представлена отдельными линиями. Благодаря рис С видим, что скачек доли экономических статей это в основном российский регион. Видим странный скачек Арт публикаций в России в 2005-2006. Видим планомерный рост доли истории у США. Видим странный горб по философии в 2001-2007 в России. Ну и обвал доли публикаций по политологии в России начиная с 2013. Все остальные доли в России, США и Европе кажутся относительно стабильными.
+
+distinct(UT) split research_areas dror region NA
+
+```{r}
+#| fig.dim = c(8, 7)
+
+df <- data %>% distinct(UT, .keep_all = TRUE) %>%
+  # разворачиваем research_areas
+  separate_rows(research_areas, sep=";") %>% 
+  mutate(research_areas = str_trim(research_areas, "both")) %>% 
+  
+  group_by(research_areas) %>% 
+  mutate(research_areas = case_when(n() < 400 ~ "Other (< 400 papers)",
+                                    TRUE ~ research_areas)) %>% ungroup() %>% 
+filter(region != "Unknown")  %>% 
+  group_by(research_areas, region) %>% count() %>% ungroup() %>% 
+  group_by(region) %>% mutate(perc = round((100 * n / sum(n)), 2))
+
+p <- ggplot(df, aes(x = region, y = perc, fill = research_areas)) + 
+  geom_col(alpha=0.6 , size=0.4, colour="black") +
+  #coord_flip() +
+  labs(title = "Научная специализация регионов (1990-2020)") +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  theme_bw() +
+  scale_fill_manual(values = my_color, limits = force) +
+  theme(panel.grid = element_blank(),
+        axis.title = element_blank()) 
+
+ggplotly(p)
+```
+
+distinct(UT) split research_areas drop na & other region
+
+::: panel-tabset
+##### Скользящее среднее + релальные значения
+
+```{r}
+#| fig.dim = c(8, 12)
+
+df <- data %>% distinct(UT, .keep_all = TRUE) %>%
+ 
+  ## разворачиваем research_areas
+  separate_rows(research_areas, sep=";") %>% 
+  mutate(research_areas = str_trim(research_areas, "both")) %>% 
+  
+  group_by(research_areas) %>% 
+  mutate(research_areas = case_when(n() < 400 ~ "Other (< 400 papers)",
+                                    TRUE ~ research_areas)) %>% ungroup() %>% 
+filter(region != "Unknown")  %>% filter(region != "Other") %>% 
+  group_by(year, research_areas,region) %>% count() %>% ungroup() %>% 
+  group_by(year,region) %>% mutate(perc = n / sum(n))
+
+df %>% mutate(perc = perc * 100) %>% 
+  ggplot(aes(x = year, perc, color = research_areas, group = research_areas)) + 
+  geom_line(alpha = 0.5, size = 0.5) +
+  geom_point(alpha = 0.5, size = 0.5) +
+  geom_ma(ma_fun = SMA, n = 3, linetype = "solid", size = 1.1) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  facet_grid(research_areas ~ region, 
+             scales = "free_y",
+             labeller = label_wrap_gen(width = 20)) +
+  labs(title = "Динамика доли",
+      subtitle = "светалая линия - реальные значения; темная линия - скользящее среднее (шаг = 3 года)") +
+  scale_color_manual(values = my_color, limits = force) +
+  guides(color = guide_legend(override.aes = list(size = 5))) +
+  theme_test() +
+  theme(panel.grid = element_blank(),
+        panel.grid.major.x = element_line(size=0.1, color = "grey70", linetype = "solid"),
+        panel.grid.major.y = element_line(size=0.1, color = "grey70", linetype = "solid"),
+        strip.background = element_rect(fill = NA,colour  = NA),
+        strip.text.x = element_text(colour = 'black', size = 8, vjust = 0),
+        strip.text.y = element_text(colour = 'black', size = 8, 
+                                    vjust = 0.5, angle = 0, hjust = 0),
+        axis.title = element_blank(),
+        legend.position  = "none",
+        axis.text.x = element_text(size = 6, angle = 45, vjust = 0),
+        axis.text.y = element_text(size = 6)) 
+
+```
+
+##### Интерактивный (реальные значения)
+
+```{r}
+#| fig.dim = c(8, 12)
+
+df <- data %>% distinct(UT, .keep_all = TRUE) %>%
+ 
+  ## разворачиваем research_areas
+  separate_rows(research_areas, sep=";") %>% 
+  mutate(research_areas = str_trim(research_areas, "both")) %>% 
+  
+  group_by(research_areas) %>% 
+  mutate(research_areas = case_when(n() < 400 ~ "Other (< 400 papers)",
+                                    TRUE ~ research_areas)) %>% ungroup() %>% 
+filter(region != "Unknown")  %>% filter(region != "Other") %>% 
+  group_by(year, research_areas,region) %>% count() %>% ungroup() %>% 
+  group_by(year,region) %>% mutate(perc = n / sum(n))
+
+p <- df %>% mutate(perc = round(perc * 100, 2)) %>% 
+  ggplot(aes(x = year, perc, color = research_areas)) + 
+  geom_line(alpha = 0.9, size = 0.5) +
+  geom_point(alpha = 0.9, size = 0.5) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  facet_grid(research_areas ~ region, 
+             scales = "free_y",
+             labeller = label_wrap_gen(width = 20)) +
+  theme_test() +
+  scale_color_manual(values = my_color, limits = force) +
+  guides(color = guide_legend(override.aes = list(size = 5))) + 
+  theme(panel.grid = element_blank(),
+        panel.grid.major.x = element_line(size=0.1, color = "grey90", linetype = "solid"),
+        panel.grid.major.y = element_line(size=0.1, color = "grey90", linetype = "solid"),
+        strip.background = element_rect(fill = NA,colour  = NA),
+        strip.text.x = element_text(colour = 'black', size = 8, vjust = 0),
+        strip.text.y = element_text(colour = 'black', size = 6, 
+                                    vjust = 0.5, angle = 0, hjust = 0.5),
+        axis.title = element_blank(),
+        legend.position = "none",
+        axis.text.x = element_text(size = 6, angle = 45, vjust = 0),
+        axis.text.y = element_text(size = 6),
+        plot.margin = margin(1, 3, 1, 1, "cm")) 
+ggplotly(p)
+```
+:::
+
+## 5. Вклад региона в область
+
+Россия из всех дисциплин серьезный вклад вносит в образование, философию, социологию и урбан (мало наблюдений) - авторы из России участвовали в написании от четверти и более всех публикаций в этих областях.
+
+distinct(UT) split research_areas
+
+```{r}
+#| fig.dim = c(8,4)
+plot_order <- data %>% distinct(UT, .keep_all = TRUE) %>%
+filter(region != "Unknown")  %>% 
+  separate_rows(research_areas, sep=";") %>% 
+  mutate(research_areas = str_trim(research_areas, "both")) %>% 
+  count(research_areas, region) %>%
+  group_by(research_areas) %>%
+  mutate(prop = prop.table(n)) %>%
+  filter(region == "Russia") %>%
+  arrange(desc(prop))
+
+lvls <- as.character(plot_order$research_areas)
+
+df1 <- data %>% distinct(UT, .keep_all = TRUE) %>%
+  
+  # разворачиваем research_areas
+  separate_rows(research_areas, sep=";") %>% 
+  mutate(research_areas = str_trim(research_areas, "both")) %>% 
+
+  group_by(research_areas) %>% 
+  mutate(research_areas = case_when(n() < 400 ~ "Other (< 400 papers)",
+                                    TRUE ~ research_areas)) %>% ungroup() %>%
+filter(region != "Unknown")  %>% 
+  group_by(research_areas, region) %>% count() %>% ungroup() %>% 
+  group_by(research_areas) %>% 
+  mutate(perc = round(100 * n / sum(n), 2))  %>% 
+  mutate(research_areas = factor(research_areas, levels = lvls))
+
+df2 <- data %>% distinct(UT, .keep_all = TRUE) %>%
+  
+  # разворачиваем research_areas
+  separate_rows(research_areas, sep=";") %>% 
+  mutate(research_areas = str_trim(research_areas, "both")) %>% 
+
+  group_by(research_areas) %>% 
+  mutate(research_areas = case_when(n() < 400 ~ "Other (< 400 papers)",
+                                    TRUE ~ research_areas)) %>% ungroup() %>%
+filter(region != "Unknown")  %>% 
+  group_by(research_areas) %>% count() %>% 
+  mutate(research_areas = factor(research_areas, levels = lvls))
+
+p1 <- ggplot(df1, aes(x = research_areas, y = perc, fill = region)) + 
+  geom_col(size = 0.2, colour = "black") +
+  coord_flip() +
+  # scale_y_continuous(labels=scales::percent) +
+  guides(fill = guide_legend(reverse=T)) +
+  theme_bw() +
+  scale_fill_brewer(palette = "Paired") +
+  theme(panel.grid = element_blank(),
+        panel.grid.major.x = element_line(size=0.1, color = "grey90", linetype = "solid"),
+        panel.grid.major.y = element_line(size=0.1, color = "grey90", linetype = "solid")) +
+  theme(strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = 'black',size = 7)) +
+  theme(axis.title = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.position = 'bottom',
+        legend.title= element_blank(),
+        legend.text = element_text(size = 7)) # +
+  # labs(title = "Вклад регионов в область (1990-2020)")
+
+p2 <- ggplot(df2, aes(x = research_areas, y = n)) +
+    geom_col(size = 0.2, fill = "grey70",
+             colour = "black") +
+    coord_flip() +
+  theme_bw() +
+  # scale_fill_manual(values = my_color, limits = force) +
+  theme(panel.grid.major.x = element_line(size=0.1, color = "grey90", linetype = "solid"),
+        panel.grid.major.y = element_line(size=0.1, color = "grey90", linetype = "solid")) +
+  theme(strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = 'black',size = 7)) +
+  theme(axis.title = element_blank(),
+        # axis.text.y = element_blank(),
+        # axis.ticks.y = element_blank(),
+        legend.title= element_blank()) #+
+  # labs(title = "Общее кол-во статей в области (1990-2020)")
+
+annotations = list( 
+  list( 
+    x = 0.25,  
+    y = 1.0,  
+    text = paste0('(А) Общее кол-во статей',
+                  '<br>',
+                  '<sup>',
+                  '(1990-2020)','</sup>'),
+    xref = "paper",  
+    yref = "paper",  
+    xanchor = "center",  
+    yanchor = "bottom",  
+    showarrow = FALSE 
+  ),  
+  list( 
+    x = 0.75,  
+    y = 1,  
+    text = paste0('(B) Вклад регионов',
+                  '<br>',
+                  '<sup>',
+                  '(1990-2020)','</sup>'),
+    xref = "paper",  
+    yref = "paper",  
+    xanchor = "center",  
+    yanchor = "bottom",  
+    showarrow = FALSE 
+  ))
+
+
+fig1<-ggplotly(p1)
+fig2<-ggplotly(p2)
+
+subplot(style(fig2, showlegend = F),
+        style(fig1, showlegend = T), nrows=1) %>% 
+   layout(annotations = annotations)
+```
+
+## 6. Страны и число организаций
+
+**Важно:** Надо сначала унифицировать страны, может сильно поменяться
+
+```{r}
+df2 <- data %>% #distinct(UT, .keep_all = TRUE) %>%
+  filter(!is.na(organisation_full)) %>%   filter(!is.na(country)) %>% 
+  group_by(country, year_group) %>% summarise(count=length(unique(organisation_full))) %>% 
+  pivot_wider(values_from = "count", names_from = "year_group") %>% 
+  mutate(`growth_to_first_period(%)` = ((`2001-2010` - `1990-2000`)*100) / `1990-2000`,
+         `growth_to_first_period(%)`= round(`growth_to_first_period(%)`, digits = 1),
+         `growth_to_sec_period(%)` = ((`2011-2020` - `2001-2010`)*100) / `2001-2010`,
+         `growth_to_sec_period(%)`= round(`growth_to_sec_period(%)`, digits = 1))
+df2 <- df2 %>% select(country, `1990-2000`,`2001-2010`,`growth_to_first_period(%)`, `2011-2020`,`growth_to_sec_period(%)`) %>% arrange(desc(`2011-2020`))
+
+options(digits = 1)
+df2 %>% 
+datatable(rownames = FALSE, options = list(pageLength = 10))
+```
+
+## 7. Вклад стран и организаций
+
+**Важно:** Надо сначала унифицировать страны, может сильно поменяться
+
+Примечание: Из 33937 строк у \~8100 нет институции и у \~4200 нет страны
+
+### Most contributing countries
+
+```{r}
+
+data %>% #distinct(UT, .keep_all = TRUE) %>%
+  mutate(country = case_when(is.na(country) ~ "Unknown",
+                             TRUE ~ country)) %>% 
+  group_by(country) %>% mutate(country = case_when(n() < 100 ~ "OTHER",
+                                                   TRUE ~ country)) %>% ungroup() %>% 
+  
+  group_by(country, year_group) %>% summarise(count=length(organisation_full)) %>% 
+  pivot_wider(values_from = "count", names_from = "year_group") %>% 
+  ungroup() %>% 
+  
+  mutate(`(%) 1990-2000` = round(`1990-2000` / sum(`1990-2000`, na.rm = TRUE) * 100, digits = 2), 
+         .after = `1990-2000`) %>% 
+  mutate(`(%) 2001-2010` = round(`2001-2010` / sum(`2001-2010`, na.rm = TRUE) * 100, digits = 2), 
+         .after = `2001-2010`) %>% 
+  mutate(`(%) 2011-2020` = round(`2011-2020` / sum(`2011-2020`, na.rm = TRUE) * 100, digits = 2), 
+         .after = `2011-2020`) %>% arrange(desc(`2011-2020`)) %>%
+  
+  datatable(rownames = FALSE, options = list(pageLength = 10))
+
+```
+
+### Most contributing institutions
+
+::: panel-tabset
+#### Без франкционализации
+
+```{r}
+
+data %>% #distinct(UT, .keep_all = TRUE) %>%
+  mutate(organisation_full = case_when(is.na(organisation_full) ~ "Unknown",
+                                       TRUE ~ organisation_full)) %>% 
+  group_by(organisation_full) %>% mutate(organisation_full = case_when(n() < 5 ~ "OTHER (< 5 pub 1990-2020)",
+                                                                       TRUE ~ organisation_full)) %>% ungroup() %>% 
+  
+  group_by(organisation_full, year_group) %>% summarise(count=length(country)) %>% 
+  pivot_wider(values_from = "count", names_from = "year_group") %>% 
+  ungroup() %>% 
+  
+  mutate(`(%) 1990-2000` = round(`1990-2000` / sum(`1990-2000`, na.rm = TRUE) * 100, digits = 2), 
+         .after = `1990-2000`) %>% 
+  mutate(`(%) 2001-2010` = round(`2001-2010` / sum(`2001-2010`, na.rm = TRUE) * 100, digits = 2), 
+         .after = `2001-2010`) %>% 
+  mutate(`(%) 2011-2020` = round(`2011-2020` / sum(`2011-2020`, na.rm = TRUE) * 100, digits = 2), 
+         .after = `2011-2020`) %>% arrange(desc(`2011-2020`)) %>% 
+  
+  datatable(rownames = FALSE, options = list(pageLength = 10))
+```
+
+#### Франкционализация
+
+```{r}
+data %>% select(UT, organisation_full, year_group) %>% #distinct(UT, .keep_all = TRUE) %>% 
+  
+  ## ФРАКЦИОНАЛИЗАЦИЯ
+  group_by(UT) %>% 
+  mutate(n_auth = length(organisation_full)) %>% ungroup() %>% 
+  mutate(share_paper_for_auth = 1/n_auth) %>%
+  
+
+  mutate(organisation_full = case_when(is.na(organisation_full) ~ "Unknown",
+                                       TRUE ~ organisation_full)) %>% 
+  # group_by(organisation_full) %>% mutate(organisation_full = case_when(n() < 5 ~ "OTHER (< 5 pub 1990-2020)",
+  #                                                                      TRUE ~ organisation_full)) %>% ungroup() %>% 
+  
+  group_by(organisation_full, year_group) %>% summarise(count = sum(share_paper_for_auth, na.rm = TRUE)) %>% 
+  pivot_wider(values_from = "count", names_from = "year_group") %>% 
+  ungroup()  %>% 
+  
+  mutate(`(%) 1990-2000` = round(`1990-2000` / sum(`1990-2000`, na.rm = TRUE) * 100, digits = 2),
+         .after = `1990-2000`) %>%
+  mutate(`(%) 2001-2010` = round(`2001-2010` / sum(`2001-2010`, na.rm = TRUE) * 100, digits = 2),
+         .after = `2001-2010`) %>%
+  mutate(`(%) 2011-2020` = round(`2011-2020` / sum(`2011-2020`, na.rm = TRUE) * 100, digits = 2),
+         .after = `2011-2020`) %>%
+  mutate(`1990-2000` = round(`1990-2000`,digits = 2),
+         `2001-2010` = round(`2001-2010`,digits = 2),
+         `2011-2020` = round(`2011-2020`,digits = 2)) %>% arrange(desc(`2011-2020`)) %>%
+  
+  datatable(rownames = FALSE, options = list(pageLength = 10))
+```
+:::

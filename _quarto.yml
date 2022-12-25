@@ -1,0 +1,20 @@
+project:
+  type: website
+  output-dir: docs
+
+website:
+  title: "Russian Studies"
+  navbar:
+    left:
+      - href: index.qmd
+        text: I. PRODUCTION OF PUBLICATIONS
+      - about.qmd
+
+format:
+  html:
+    theme: minty
+    css: styles.css
+    toc: true
+
+
+
