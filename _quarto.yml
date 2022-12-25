@@ -3,12 +3,17 @@ project:
   output-dir: docs
 
 website:
+  search: false
   title: "Russian Studies"
   navbar:
     left:
       - href: index.qmd
         text: I. PRODUCTION OF PUBLICATIONS
       - about.qmd
+    right:
+      - icon: github
+        href: https://hellche.github.io/grant_applications/
+        aria-label: GitHub
 
 format:
   html:

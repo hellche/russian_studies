@@ -217,7 +217,14 @@ data %>% #distinct(UT, .keep_all = TRUE) %>%
   pivot_wider(values_from = c(n,tc,mncs), names_from = "year_group2") %>% 
   ungroup() %>% arrange(desc(`n_III`)) %>%
   
-  datatable(rownames = FALSE, options = list(pageLength = 10)) %>% 
+datatable(rownames = FALSE, 
+          options = list(pageLength = 10,
+                         headerCallback = DT::JS("function(thead) {",
+                                                 "  $(thead).css('font-size',
+                                                 '0.6em');",
+                                                 "}"
+                                                 ))) %>% 
+  DT::formatStyle(columns = c(1:10), fontSize = '80%') %>%  
   formatRound(columns=c(5:10), digits=1)
 ```
 
@@ -400,7 +407,14 @@ data %>% #distinct(UT, .keep_all = TRUE) %>%
   
   ungroup() %>% arrange(desc(count)) %>%
   
-  datatable(rownames = FALSE, options = list(pageLength = 10)) %>% 
+datatable(rownames = FALSE, 
+          options = list(pageLength = 10,
+                         headerCallback = DT::JS("function(thead) {",
+                                                 "  $(thead).css('font-size',
+                                                 '0.6em');",
+                                                 "}"
+                                                 ))) %>% 
+  DT::formatStyle(columns = c(1:8), fontSize = '80%') %>% 
   formatRound(columns=c(6:8), digits=1)
   
 ```
@@ -426,7 +440,14 @@ data %>% #distinct(UT, .keep_all = TRUE) %>%
   
   ungroup() %>% arrange(desc(count)) %>%
   
-  datatable(rownames = FALSE, options = list(pageLength = 10)) %>% 
+datatable(rownames = FALSE, 
+          options = list(pageLength = 10,
+                         headerCallback = DT::JS("function(thead) {",
+                                                 "  $(thead).css('font-size',
+                                                 '0.6em');",
+                                                 "}"
+                                                 ))) %>% 
+  DT::formatStyle(columns = c(1:8), fontSize = '80%') %>% 
   formatRound(columns=c(6:8), digits=1)
   
 ```
@@ -452,7 +473,14 @@ data %>% #distinct(UT, .keep_all = TRUE) %>%
   
   ungroup() %>% arrange(desc(count)) %>%
   
-  datatable(rownames = FALSE, options = list(pageLength = 10)) %>% 
+datatable(rownames = FALSE, 
+          options = list(pageLength = 10,
+                         headerCallback = DT::JS("function(thead) {",
+                                                 "  $(thead).css('font-size',
+                                                 '0.6em');",
+                                                 "}"
+                                                 ))) %>% 
+  DT::formatStyle(columns = c(1:8), fontSize = '80%')%>% 
   formatRound(columns=c(6:8), digits=1)
   
 ```

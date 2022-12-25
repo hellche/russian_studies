@@ -738,7 +738,14 @@ df2 <- df2 %>% select(country, `1990-2000`,`2001-2010`,`growth_to_first_period(%
 
 options(digits = 1)
 df2 %>% 
-datatable(rownames = FALSE, options = list(pageLength = 10))
+datatable(rownames = FALSE, 
+          options = list(pageLength = 10,
+                         headerCallback = DT::JS("function(thead) {",
+                                                 "  $(thead).css('font-size',
+                                                 '0.6em');",
+                                                 "}"
+                                                 ))) %>% 
+  DT::formatStyle(columns = c(1:6), fontSize = '80%')
 ```
 
 ## 7. Вклад стран и организаций
@@ -768,7 +775,14 @@ data %>% #distinct(UT, .keep_all = TRUE) %>%
   mutate(`(%) 2011-2020` = round(`2011-2020` / sum(`2011-2020`, na.rm = TRUE) * 100, digits = 2), 
          .after = `2011-2020`) %>% arrange(desc(`2011-2020`)) %>%
   
-  datatable(rownames = FALSE, options = list(pageLength = 10))
+datatable(rownames = FALSE, 
+          options = list(pageLength = 10,
+                         headerCallback = DT::JS("function(thead) {",
+                                                 "  $(thead).css('font-size',
+                                                 '0.6em');",
+                                                 "}"
+                                                 ))) %>% 
+  DT::formatStyle(columns = c(1:7), fontSize = '80%')
 
 ```
 
@@ -796,7 +810,14 @@ data %>% #distinct(UT, .keep_all = TRUE) %>%
   mutate(`(%) 2011-2020` = round(`2011-2020` / sum(`2011-2020`, na.rm = TRUE) * 100, digits = 2), 
          .after = `2011-2020`) %>% arrange(desc(`2011-2020`)) %>% 
   
-  datatable(rownames = FALSE, options = list(pageLength = 10))
+  datatable(rownames = FALSE, 
+          options = list(pageLength = 10,
+                         headerCallback = DT::JS("function(thead) {",
+                                                 "  $(thead).css('font-size',
+                                                 '0.6em');",
+                                                 "}"
+                                                 ))) %>% 
+  DT::formatStyle(columns = c(1:7), fontSize = '80%')
 ```
 
 #### Франкционализация
@@ -829,6 +850,13 @@ data %>% select(UT, organisation_full, year_group) %>% #distinct(UT, .keep_all =
          `2001-2010` = round(`2001-2010`,digits = 2),
          `2011-2020` = round(`2011-2020`,digits = 2)) %>% arrange(desc(`2011-2020`)) %>%
   
-  datatable(rownames = FALSE, options = list(pageLength = 10))
+  datatable(rownames = FALSE, 
+          options = list(pageLength = 10,
+                         headerCallback = DT::JS("function(thead) {",
+                                                 "  $(thead).css('font-size',
+                                                 '0.6em');",
+                                                 "}"
+                                                 ))) %>% 
+  DT::formatStyle(columns = c(1:7), fontSize = '80%')
 ```
 :::
