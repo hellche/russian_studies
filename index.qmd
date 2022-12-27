@@ -854,7 +854,7 @@ data %>% #distinct(UT, .keep_all = TRUE) %>%
   group_by(country, year_group) %>% summarise(count=length(organisation_full)) %>% 
   pivot_wider(values_from = "count", names_from = "year_group") %>% 
   ungroup() %>% 
-  
+    select(country, `1990-2000`, `2001-2010`, `2011-2020`) %>% 
   mutate(`(%) 1990-2000` = round(`1990-2000` / sum(`1990-2000`, na.rm = TRUE) * 100, digits = 2), 
          .after = `1990-2000`) %>% 
   mutate(`(%) 2001-2010` = round(`2001-2010` / sum(`2001-2010`, na.rm = TRUE) * 100, digits = 2), 
