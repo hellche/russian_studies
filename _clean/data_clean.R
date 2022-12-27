@@ -5,6 +5,19 @@ library(readxl)
 
 data <- read_excel("/Users/elenachechik/Desktop/Russian_studies/data/full_data_precise original.xlsx")
 
+
+# цепляем из экселевского файла organisation_full_names новые organisation_full
+
+organisation_full_names <- read_excel("/Users/elenachechik/Desktop/Russian_studies/data/organisation_full_names.xlsx") %>% 
+  select(organisation, organisation_full) %>% 
+  distinct(organisation, .keep_all = TRUE) %>% rename(organisation_full_new = organisation_full)
+
+data <- data %>% #select(organisation, organisation_full) %>% 
+  left_join(organisation_full_names) %>% 
+  mutate(organisation_full = case_when(!is.na(organisation_full_new) ~ organisation_full_new,
+                                       TRUE ~ organisation_full)) %>% select(-organisation_full_new)
+
+
 UT_org_replace <- read_delim("/Users/elenachechik/Desktop/Russian_studies/data/UT_org_replace.csv", 
                              delim = ";", escape_double = FALSE, col_names = FALSE, 
                              trim_ws = TRUE) 
@@ -29,7 +42,7 @@ data <- data %>% mutate(field = gsub("\\['", "", field),
                         field = gsub("\\', '", ";", field))
 
 data <- data %>% mutate(region = case_when(region == "Africa"|
-                                             region == "Americas"|
+                                             region == "Americas" |
                                              region == "Oceania" ~ "Other",
                                            TRUE ~ region))
 
@@ -63,7 +76,9 @@ data <- data %>% #select(UT, country, organisation_full) %>%
                                          UT == "WOS:A1991HK57400005" ~ "Unknown",
                                        TRUE ~ organisation_full)) %>% select(-X2) %>% 
   filter(organisation_full != "Independent Researcher") %>% 
+  filter(organisation_full != "U.S. Naval War College") %>% 
   filter(organisation_full != "Us Naval War College")
+
 
 
 
@@ -144,3 +159,11 @@ data <- data %>% mutate(region_2 = case_when(country == "Unknown" ~ region,
 
 write_csv(data, 
           "/Users/elenachechik/Desktop/Russian_studies/data/data_clean.csv")
+
+
+## Институции для катерины, оценка грязи
+
+
+# df <- data %>% group_by(organisation_full) %>% count() 
+# write_csv(df, 
+#           "/Users/elenachechik/Desktop/Russian_studies/data/for_katerina_org.csv")
