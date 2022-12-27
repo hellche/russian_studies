@@ -291,7 +291,7 @@ p1
 
 ```{r}
 
-#| fig.dim = c(6, 3)
+#| fig.dim = c(7, 3)
 
 df <- data %>% #distinct(UT, .keep_all = TRUE) %>% 
   select(year, region, top_1, top_10, top_25) %>% 
@@ -345,7 +345,7 @@ ggplotly(p1) %>% layout(legend = list(orientation = "h",
 
 
 ```{r}
-#| fig.dim = c(6, 3)
+#| fig.dim = c(7, 3)
 df <- data %>% #distinct(UT, .keep_all = TRUE) %>% 
   select(year, region, top_1, top_10, top_25) %>% 
 filter(region != "Unknown") %>% 
@@ -617,7 +617,7 @@ p2 <- data %>% filter(region != "Unknown") %>%
   #   ) +
   scale_y_continuous(labels = function(x) paste0(x, "%")) +
   facet_wrap(~field, nrow = 1) +
-  labs(title = "Fig 7: Доли",
+  labs(title = "Fig 7: Доли регионов в самом лучшем аутпуте",
       subtitle = "светалая линия - реальные значения; темная линия - скользящее среднее (шаг = 3 года)") +
   theme_bw() +
   scale_color_brewer(palette = "Paired") +
@@ -659,7 +659,7 @@ p2 <- data %>%  filter(region != "Unknown") %>%
   #   ) +
   scale_y_continuous(labels = function(x) paste0(x, "%")) +
   facet_wrap(~field, nrow = 1) +
-  labs(title = "Fig 8: Доли",
+  labs(title = "Fig 8: Доли регионов в Q1",
       subtitle = "светалая линия - реальные значения; темная линия - скользящее среднее (шаг = 3 года)") +
   theme_bw() +
   scale_color_brewer(palette = "Paired") +
