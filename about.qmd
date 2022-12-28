@@ -494,8 +494,11 @@ datatable(rownames = FALSE,
 
 **Важно:** 5 лучших в 1990 и 1991 это не обязательно одни и те же
 институции. В графиках показаны топы институций в каждый конкретный год.
-Фракционализация не производилась. Лучших по какому показателю? Рисунки
-построены как лучшие по количеству статей в каждый конкретный год.
+Фракционализация не производилась. Рисунки
+построены как лучшие по `TC` и `mncs` в каждый конкретный год. 
+На рисунке мы фактически видим среднее средних. 
+
+По шагам: В 1990 году для каждой институции мы считаем `среднее TC`. выбираем топ 5 институций, у котрых самый высокий `средний TC` в 1990. Для этих 5 институции мы счимтаем `средннее средних TC`. Таким образом мы получаем точку, которая сейчас отображена на графике в 1990 для группы топ 5 лучших. Чтобы получить топ 10 мы берем для 10 лучших `средннее средних TC` (5 институций у нас те же самые что и в топ 5). Для топ 20 по тому же принципу (в топ 20 входит топ 5 и 10). Группа "все остальные" это от топ 21 места до самой последней институции. Для каждого года всё рассчитывается по новой. Для `mncs` всё считается отдельно по тому же принципу. На вкладках `Таблица_ТС/mncs` можно посмотреть конкретные значения более подробно.
 
 ::: panel-tabset 
 
@@ -505,55 +508,45 @@ datatable(rownames = FALSE,
 
 ## создание переменных топ-универов
 
-df <- data %>% #distinct(UT, .keep_all = TRUE) %>% 
-  select(year, organisation_full, top_1, top_10, top_25) %>% 
+df1 <- data %>% # distinct(UT, .keep_all = TRUE) %>% 
+  select(year, organisation_full, TC) %>% 
   filter(!is.na(organisation_full)) %>% 
-  group_by(year, organisation_full) %>% summarise(count = length(top_1)) %>% ungroup() %>% 
-  arrange(desc(count)) %>% group_by(year) %>%  mutate(top_5_group = case_when(row_number() %in% c(1:5) ~ 1,
-                                                                        TRUE ~ 0),
-                                                      top_10_group = case_when(row_number() %in% c(1:10) ~ 1,
-                                                                        TRUE ~ 0),
-                                                      top_20_group = case_when(row_number() %in% c(1:20) ~ 1,
-                                                                        TRUE ~ 0),
-                                                      other_group = case_when(top_20_group == 0 ~ 1,
-                                                                        TRUE ~ 0)) %>% ungroup() %>% 
-  select(-count)
-                                                                   
-df2 <- data %>% filter(!is.na(organisation_full)) %>% 
-  left_join(df, by = c("year"="year", "organisation_full"="organisation_full")) %>% 
-  select(year, organisation_full, top_5_group, top_10_group, top_20_group, other_group, TC, mncs)
-
-top_5_group <-  df2 %>% filter(top_5_group == 1) %>% 
-  group_by(year) %>% summarise(organisation_full = paste(sort(unique(organisation_full)),collapse="; "),
-                               group = "top_5_group",
-                               mean_mncs = mean(mncs, na.rm = TRUE),
-                               mean_TC = mean(TC, na.rm = TRUE)) %>% ungroup()
-
-top_10_group <-  df2 %>% filter(top_10_group == 1) %>% 
-  group_by(year) %>% summarise(organisation_full = paste(sort(unique(organisation_full)),collapse="; "),
-                               group = "top_10_group",
-                               mean_mncs = mean(mncs, na.rm = TRUE),
-                               mean_TC = mean(TC, na.rm = TRUE)) %>% ungroup()
-
-top_20_group <-  df2 %>% filter(top_20_group == 1) %>% 
-  group_by(year) %>% summarise(organisation_full = "long list",
-                               group = "top_20_group",
-                               mean_mncs = mean(mncs, na.rm = TRUE),
-                               mean_TC = mean(TC, na.rm = TRUE)) %>% ungroup()
-
-other_group <-  df2 %>% filter(other_group == 1) %>% 
-  group_by(year) %>% summarise(organisation_full = "long list",
-                               group = "other_group",
-                               mean_mncs = mean(mncs, na.rm = TRUE),
-                               mean_TC = mean(TC, na.rm = TRUE)) %>% ungroup()
-
-df3 <- rbind(top_5_group, top_10_group, top_20_group, other_group)
+  group_by(year, organisation_full) %>% summarise(mean_TC = mean(TC, na.rm = TRUE)) %>% ungroup() %>% 
+  arrange(desc(mean_TC)) %>% group_by(year) %>%  
+  mutate(top_5_group = case_when(row_number() %in% c(1:5) ~ 1,
+                                 TRUE ~ 0),
+         top_10_group = case_when(row_number() %in% c(1:10) ~ 1,
+                                  TRUE ~ 0),
+         top_20_group = case_when(row_number() %in% c(1:20) ~ 1,
+                                  TRUE ~ 0),
+         other_group = case_when(top_20_group == 0 ~ 1,
+                                 TRUE ~ 0)) %>% ungroup() # %>% 
+  #select(-mean_TC)
 
 
-p1 <- df3 %>% 
-  ggplot(aes(year, mean_TC, color = group, group=group)) +
+df2 <- data %>% # distinct(UT, .keep_all = TRUE) %>%
+  select(year, organisation_full, mncs) %>%
+  filter(!is.na(organisation_full)) %>%
+  group_by(year, organisation_full) %>% summarise(mean_mncs = mean(mncs, na.rm = TRUE)) %>% ungroup() %>%
+  arrange(desc(mean_mncs)) %>% group_by(year) %>%
+  mutate(top_5_group = case_when(row_number() %in% c(1:5) ~ 1,
+                                 TRUE ~ 0),
+         top_10_group = case_when(row_number() %in% c(1:10) ~ 1,
+                                  TRUE ~ 0),
+         top_20_group = case_when(row_number() %in% c(1:20) ~ 1,
+                                  TRUE ~ 0),
+         other_group = case_when(top_20_group == 0 ~ 1,
+                                 TRUE ~ 0)) %>% ungroup() # %>%
+  #select(-mean_mncs)
+
+p1 <- df1 %>% 
+  pivot_longer(top_5_group:other_group) %>% filter(value == 1) %>% 
+  group_by(year, name) %>% mutate(mean_mean_TC = mean(mean_TC)) %>% 
+  select(-organisation_full, -mean_TC, -value) %>% distinct(.keep_all = TRUE) %>% 
+  ggplot(aes(year, mean_mean_TC, color = name, group = name)) +
   geom_line() +
-    labs(title = "Fig 6a: mean_TC") +
+  labs(title = "Fig 6a: Среденее среднего TC") +
+  scale_color_brewer(palette = "Dark2", direction = -1) +
   theme_bw() +
   theme(panel.grid = element_blank(),
         panel.grid.major.y = element_line(size=0.1, color = "grey70", linetype = "solid")) +
@@ -565,29 +558,89 @@ p1 <- df3 %>%
   theme(axis.text.x = element_text(size = 7, angle = 0, vjust=0.5),
         axis.text.y = element_text(size = 8)) 
 
-p2 <- df3 %>% 
-  ggplot(aes(year, mean_mncs, color = group, group=group)) +
+p2 <- df2 %>% 
+  pivot_longer(top_5_group:other_group) %>% filter(value == 1) %>% 
+  group_by(year, name) %>% mutate(mean_mean_mncs = mean(mean_mncs)) %>% 
+  select(-organisation_full, -mean_mncs, -value) %>% distinct(.keep_all = TRUE) %>% 
+  ggplot(aes(year, mean_mean_mncs, color = name, group = name)) +
   geom_line() +
-    labs(title = "Fig 6b: mean_mncs") +
+  labs(title = "Fig 6b: Среденее среднего mncs") +
+  scale_color_brewer(palette = "Dark2", direction = -1) +
   theme_bw() +
   theme(panel.grid = element_blank(),
         panel.grid.major.y = element_line(size=0.1, color = "grey70", linetype = "solid")) +
   theme(strip.background = element_rect(fill = NA),
         strip.text = element_text(colour = 'black',size = 8)) +
   theme(axis.title = element_blank(),
+        legend.position = "top",
         legend.title= element_blank()) +
   theme(axis.text.x = element_text(size = 7, angle = 0, vjust=0.5),
         axis.text.y = element_text(size = 8)) 
   
+
 p1 + p2 + plot_layout(guides = "collect") & 
   theme(legend.position = "bottom")
+
 ```
 
-##### Таблица с институциями, включенных в конкретный топ
+##### Таблица с институциями (TC)
 
 ```{r}
-df3 %>% select(year, group, organisation_full) %>% 
-  datatable(rownames = FALSE, options = list(pageLength = 10)) 
+
+data %>% # distinct(UT, .keep_all = TRUE) %>%
+  select(year, organisation_full, TC) %>%
+  filter(!is.na(organisation_full)) %>%
+  group_by(year, organisation_full) %>% summarise(mean_TC = mean(TC, na.rm = TRUE)) %>% ungroup() %>%
+  arrange(desc(mean_TC)) %>% group_by(year) %>%
+  mutate(top_5_group = case_when(row_number() %in% c(1:5) ~ 1,
+                                 TRUE ~ 0),
+         top_10_group = case_when(row_number() %in% c(1:10) ~ 1,
+                                  TRUE ~ 0),
+         top_20_group = case_when(row_number() %in% c(1:20) ~ 1,
+                                  TRUE ~ 0),
+         other_group = case_when(top_20_group == 0 ~ 1,
+                                 TRUE ~ 0)) %>% ungroup() %>%
+  arrange(year, desc(top_5_group)) %>% 
+  datatable(rownames = FALSE, 
+          options = list(pageLength = 10,
+                         headerCallback = DT::JS("function(thead) {",
+                                                 "  $(thead).css('font-size',
+                                                 '0.6em');",
+                                                 "}"
+                                                 ))) %>% 
+  DT::formatStyle(columns = c(1:8), fontSize = '80%')%>% 
+  formatRound(columns=c(3), digits=1) 
+
+```
+
+##### Таблица с институциями (mncs)
+
+```{r}
+
+data %>% # distinct(UT, .keep_all = TRUE) %>%
+  select(year, organisation_full, mncs) %>%
+  filter(!is.na(organisation_full)) %>%
+  group_by(year, organisation_full) %>% summarise(mean_mncs = mean(mncs, na.rm = TRUE)) %>% ungroup() %>%
+  arrange(desc(mean_mncs)) %>% group_by(year) %>%
+  mutate(top_5_group = case_when(row_number() %in% c(1:5) ~ 1,
+                                 TRUE ~ 0),
+         top_10_group = case_when(row_number() %in% c(1:10) ~ 1,
+                                  TRUE ~ 0),
+         top_20_group = case_when(row_number() %in% c(1:20) ~ 1,
+                                  TRUE ~ 0),
+         other_group = case_when(top_20_group == 0 ~ 1,
+                                 TRUE ~ 0)) %>% ungroup() %>%
+  arrange(year, desc(top_5_group)) %>% 
+  datatable(rownames = FALSE, 
+          options = list(pageLength = 10,
+                         headerCallback = DT::JS("function(thead) {",
+                                                 "  $(thead).css('font-size',
+                                                 '0.6em');",
+                                                 "}"
+                                                 ))) %>% 
+  DT::formatStyle(columns = c(1:8), fontSize = '80%')%>% 
+  formatRound(columns=c(3), digits=1) 
+
 ```
 
 :::
@@ -607,8 +660,8 @@ p2 <- data %>% filter(region != "Unknown") %>%
   group_by(field, year, region) %>% count() %>% ungroup() %>% 
   group_by(field, year) %>% mutate(sh = 100* n / sum(n)) %>% 
   ggplot(aes(year, sh, color = region)) +
-  geom_line(alpha = 0.5, size = 0.5) +
-  geom_point(alpha = 0.5, size = 0.5) +
+  geom_line(alpha = 0.4, size = 0.4) +
+  geom_point(alpha = 0.4, size = 0.4) +
   geom_ma(ma_fun = SMA, n = 3, linetype = "solid", size = 1.1) +
   # scale_x_continuous(
   #       labels = as.character(seq(min(df$year), max(df$year), by = 1)),
@@ -649,8 +702,8 @@ p2 <- data %>%  filter(region != "Unknown") %>%
   group_by(field, year, region) %>% count() %>% ungroup() %>% 
   group_by(field, year) %>% mutate(sh = 100* n / sum(n)) %>% 
   ggplot(aes(year, sh, color = region)) +
-  geom_line(alpha = 0.5, size = 0.5) +
-  geom_point(alpha = 0.5, size = 0.5) +
+  geom_line(alpha = 0.4, size = 0.4) +
+  geom_point(alpha = 0.4, size = 0.4) +
   geom_ma(ma_fun = SMA, n = 3, linetype = "solid", size = 1.1) +
   # scale_x_continuous(
   #       labels = as.character(seq(min(df$year), max(df$year), by = 1)),

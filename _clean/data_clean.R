@@ -157,6 +157,16 @@ data <- data %>% mutate(region_2 = case_when(country == "Unknown" ~ region,
 #             region = paste(sort(unique(region)), collapse="; ")) %>%
 #   arrange(desc(count))
 
+
+## Недочищенные институции
+
+data <-  data %>% 
+  mutate(organisation_full = case_when(organisation_full == 'University Of Kentucky' ~ "University of Kentucky",
+                                       TRUE ~ organisation_full))
+
+
+
+
 write_csv(data, 
           "/Users/elenachechik/Desktop/Russian_studies/data/data_clean.csv")
 
