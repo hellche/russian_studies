@@ -102,18 +102,22 @@ all_test <- function(x, ...) {
 data <- read_csv("data/data_clean.csv")
 ```
 
+Выброс у Азии это статья `The impact of national culture and economic ideology on managerial work values: A study of the United States, Russia, Japan, and China` (WOS:A1997WX87900008) где 4 соавтора и два из них из Азии. Соавторы этой статьи из других регионов растворились в среднем для своего региона того года. В Азии мало наблюдений, поэтому это выброс не растворился в среднем. 
+
+
 ## 1. Средний импакт
 
 ```{r}
 #| fig.dim = c(9, 3)
 
-df <- data %>% # distinct(UT, .keep_all = TRUE) %>% # select(year,region,field) %>% 
+df <- data %>% # distinct(UT, .keep_all = TRUE) %>% 
+  filter(region == "Asia") %>% 
   filter(region != "Unknown") %>% 
   group_by(year,region) %>% 
   summarise(mean_TC = round(mean(TC), 2),
             mean_mncs = round(mean(mncs), 2)) 
 
-p1 <- df %>% ggplot(aes(x=year, y=mean_TC, fill=region, group = region)) + 
+p1 <- df %>% ggplot(aes(x=year, y=mean_TC, fill=region)) + 
   geom_col() +
   facet_wrap(~region, nrow = 1) +
   labs(title = "Fig 1: Среднее число цитирований по ядру (TC)") +
@@ -138,7 +142,7 @@ filter(region != "Unknown") %>%
             mean_mncs = round(mean(mncs), 2)) 
 
 p2 <- df %>%  
-  ggplot(aes(x=year, y=mean_mncs, fill=region, group = region)) + 
+  ggplot(aes(x=year, y=mean_mncs, fill=region)) + 
   geom_col() +
   facet_wrap(~region, nrow = 1) +
   labs(title = "Fig 2: Среднее значение MNCS") +
@@ -682,7 +686,7 @@ p2 <- data %>% filter(region != "Unknown") %>%
         strip.text = element_text(colour = 'black',size = 7)) +
   theme(axis.title = element_blank(),
         legend.title= element_blank()) +
-  theme(axis.text.x = element_text(size = 7, angle = 90, vjust=0.5),
+  theme(axis.text.x = element_text(size = 7, angle = 45, vjust=0.5),
         axis.text.y = element_text(size = 8))   
 
 p2
@@ -724,7 +728,7 @@ p2 <- data %>%  filter(region != "Unknown") %>%
         strip.text = element_text(colour = 'black',size = 7)) +
   theme(axis.title = element_blank(),
         legend.title= element_blank()) +
-  theme(axis.text.x = element_text(size = 7, angle = 90, vjust=0.5),
+  theme(axis.text.x = element_text(size = 7, angle = 45, vjust=0.5),
         axis.text.y = element_text(size = 8))   
 
 p2
