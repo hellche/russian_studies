@@ -111,9 +111,9 @@ data <- read_csv("data/data_clean.csv")
 #| fig.dim = c(9, 3)
 
 df <- data %>% # distinct(UT, .keep_all = TRUE) %>% 
-  filter(region == "Asia") %>% 
+  # filter(region == "Asia") %>% 
   filter(region != "Unknown") %>% 
-  group_by(year,region) %>% 
+  group_by(year, region) %>% 
   summarise(mean_TC = round(mean(TC), 2),
             mean_mncs = round(mean(mncs), 2)) 
 
