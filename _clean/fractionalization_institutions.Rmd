@@ -1,0 +1,419 @@
+---
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+Заметки:
+
+\- регион добавлен из data_clean.csv
+
+\- total_pub - все публикации
+
+\- NA - все публикации без квартиля
+
+\- Датасет с без фракционализацией. На примере WOS:A1996WT56000001. 5
+соавторов из двух институций. Каждой из двух институции по + 1 от
+публикации WOS:A1996WT56000001
+
+\- Датасет с фракционализацией. на примере WOS:000313058100003. три
+соавтора. два из одной институции (Rutgers State University). Rutgers
+State University получает (0.33 + 0.33). National Research University
+Higher School of Economics 0.33
+
+\- Датасет с фракционализацией. фракционализация research_areas. на
+примере WOS:000286815100004. три research_areas через запятую, три
+соавтора, два из которых в одном универе.
+
+универу с одним соавтором:
+
+в область A будет добавлено 0.33 \* 0.33 = 0.1111
+
+в область B будет добавлено 0.33 \* 0.33 = 0.1111
+
+в область C будет добавлено 0.33 \* 0.33 = 0.1111
+
+Универу с двумя соваторами:
+
+в область A будет добавлено (0.33 + 0.33) \* 0.33 = 0.2222
+
+в область B будет добавлено (0.33 + 0.33) \* 0.33 = 0.2222
+
+в область C будет добавлено (0.33 + 0.33) \* 0.33 = 0.2222
+
+ИТОГО: 0.2222 \* 3 + 0.1111 \* 3 = 1 статья WOS:000286815100004
+
+\- Датасет с фракционализацией. field - 3 переменных SSCI, AHCI,
+SSCI/AHCI -- и число публикаций в каждой категории *фракционализована*
+
+*-* Датасетс фракционализацией*. collab_type* фракционализована
+
+Изначальный датасет data_website_original. Прежде начала работы к нему
+по id добавить переменную q из data_website.
+
+```{r}
+data_website_original <- read_excel("data/data_website original.xlsx")
+
+data_website <- read_excel("data/data_website.xlsx") %>% select(id, Q) %>% 
+  distinct(id, .keep_all = TRUE)
+  # group_by(id) %>% 
+  # summarise(count = length(Q),
+  #           Q = paste(sort(unique(Q)), collapse = "; ")) %>%
+  # arrange(desc(count))
+
+country_region <- read_csv("data/data_clean.csv") %>% select(country, region) %>%
+  distinct(country, region, .keep_all = TRUE) %>%
+  filter(!is.na(country))
+
+data_kat <- data_website_original %>% 
+  left_join(data_website, by = c("UT" = "id")) %>% 
+  mutate(year_group = case_when(year >= 1990 & year <= 2000 ~ "1990-2000",
+                                year >= 2001 & year <= 2010 ~ "2001-2010",
+                                year >= 2011 & year <= 2020 ~ "2011-2020",
+                                TRUE ~ as.character(year))) %>% 
+  mutate(year_group = factor(year_group, 
+                             levels = c("1990-2000", "2001-2010","2011-2020"))) 
+data_kat$country[data_kat$country == "Hong Kong"] <- "China"
+data_kat <- data_kat %>% left_join(country_region)
+```
+
+# Версия датасета без фракционализации
+
+Итоговый датасет -- это где наблюдениями являются институции. При этом
+случаи, когда одна статья написана несколькими авторами из одной
+организации, должны превратиться в случаи, когда этой организации
+приписана одна статья. Сейчас в файле это не так. То есть, наверное,
+прежде чем получать файл где институции, нужно в статье, которая
+множественными строчками записана, убрать все повторные строчки с одной
+и той же организацией. А потом уже переходить к преобразованию файла,
+чтобы наблюдения были организациями. В этой версии если статья была
+написана 2 авторами из разных организаций, то каждой организации
+приписывается по статье.
+
+-   На примере WOS:A1996WT56000001. 5 соавторов из двух институций.
+    Каждой из двух институции по + 1 остатье от WOS:A1996WT56000001
+
+```{r}
+data_non_frac <- data_kat %>% filter(!is.na(organisation_full)) %>% 
+  distinct(UT, organisation_full, .keep_all = TRUE) # %>% 
+  # group_by(UT, organisation_full) %>% count()
+```
+
+organisation_full -- основная сущность нового датасета это организации
+
+## Переменные
+
+1990-2000 - количество публикаций этой организации 2001-2010 -
+количество публикаций этой организации 2011-2020 -- количество
+публикаций этой организации country - Страна region - Регион
+
+```{r}
+df1 <- data_non_frac %>% 
+  group_by(organisation_full) %>% 
+  summarise(total_pub = length(UT),
+            country = paste(sort(unique(country)),collapse="; "),
+            region = paste(sort(unique(region)),collapse="; "))
+df2 <- data_non_frac %>% 
+  group_by(organisation_full, year_group) %>% 
+  summarise(count = length(organisation_full)) %>% 
+  pivot_wider(values_from = "count", names_from = "year_group") %>% 
+  ungroup() %>% 
+  select(organisation_full, `1990-2000`, `2001-2010`, `2011-2020`) 
+
+data <- left_join(df1, df2)  
+```
+
+q1 -- количество статей в 1 квартиле q2 -- количество статей в 2
+квартиле q3 -- количество статей в 3 квартиле q4 -- количество статей в
+4 квартиле q1_2000_2020 - количество статей в 1 квартиле в периоде
+2000-2020
+
+```{r}
+df1 <- data_non_frac %>% 
+  group_by(organisation_full, Q) %>% 
+  summarise(count = length(organisation_full)) %>% 
+  pivot_wider(values_from = "count", names_from = "Q") %>% 
+  ungroup() %>% 
+  select(organisation_full, `Q1`, `Q2`, `Q3`, `Q4`, `NA`) 
+
+df2 <- data_non_frac %>% 
+  filter(Q == "Q1") %>% 
+  filter(year >= 2000) %>% 
+  group_by(organisation_full) %>% 
+  summarise(q1_2000_2020 = length(organisation_full))
+
+df3 <- df1 %>% left_join(df2)
+
+data <- data %>% left_join(df3)
+```
+
+research_areas - 15 переменных и в них количество публикаций организации
+в этой категории. Если нескольким категориям, то присвоить часть статьи.
+Фракционализовать.
+
+```{r}
+df1 <- data_non_frac %>% select(UT, organisation_full, research_areas) %>% 
+  mutate(id = row_number()) %>% 
+  separate_rows(research_areas, sep=";") %>% 
+  mutate(research_areas = str_trim(research_areas, "both")) %>% 
+  group_by(id) %>% 
+  mutate(n_fields = length(organisation_full)) %>% ungroup() %>% select(-id) %>% 
+  mutate(frac_fields = 1 / n_fields) %>% 
+  group_by(organisation_full, research_areas) %>% 
+  summarise(count = sum(frac_fields)) %>% ungroup() %>% 
+  pivot_wider(values_from = "count", names_from = "research_areas") 
+
+data <- data %>% left_join(df1)
+```
+
+field - 3 переменных SSCI, AHCI, SSCI/AHCI -- и число публикаций в
+каждой категории
+
+```{r}
+df1 <- data_non_frac %>% 
+  group_by(organisation_full, field) %>% 
+  summarise(count = length(organisation_full)) %>% 
+  pivot_wider(values_from = "count", names_from = "field") %>% 
+  ungroup() 
+
+data <- data %>% left_join(df1)
+```
+
+TC - взять среднее для организации по всему датасету top_1 - взять сумму
+для организации по всему датасету top_10 - взять сумму для организации
+по всему датасету top_25 - взять сумму для организации по всему датасету
+mncs - взять среднее для организации по всему датасету
+
+```{r}
+df1 <- data_non_frac %>% 
+  group_by(organisation_full) %>% 
+  summarise(TC = mean(TC, na.rm = TRUE),
+            top_1 = sum(top_1),
+            top_10 = sum(top_10),
+            top_25 = sum(top_25),
+            mncs = mean(mncs, na.rm = TRUE)) 
+
+data <- data %>% left_join(df1)
+```
+
+collab_type -- категориальные переменные с число публикаций по каждой
+категории collab_type
+
+```{r}
+df1 <- data_non_frac %>% 
+  group_by(organisation_full, collab_type) %>% 
+  summarise(count = length(organisation_full)) %>% 
+  pivot_wider(values_from = "count", names_from = "collab_type") %>% 
+  ungroup() 
+
+data <- data %>% left_join(df1)
+write_csv(data, "data_non_frac.csv")
+openxlsx::write.xlsx(data, "data_non_frac.xlsx")
+```
+
+# Версия датасета с фракционализацией
+
+Итоговый датасет -- это где наблюдениями являются институции.Кажется, у
+нас подход к фракционализации, что если 3 организации и 2 из них
+одинаковые, то им присваивается 0,6. Тогда "очищать" статью от повторов
+авторов из одних и тех же организаций не нужно. organisation_full --
+основная сущность нового датасета это организации
+
+```{r}
+data_frac <- data_kat %>% filter(!is.na(organisation_full)) %>% 
+  ## ФРАКЦИОНАЛИЗАЦИЯ
+  group_by(UT) %>% 
+  mutate(n_auth = length(organisation_full), .after = "organisation_full") %>% 
+  ungroup() %>% 
+  mutate(frac = 1 / n_auth, .after = "organisation_full")
+```
+
+## Переменные
+
+1990-2000 - количество публикаций этой организации \* С учетом
+фракционализации 2001-2010 - количество публикаций этой организации \* С
+учетом фракционализации 2011-2020 -- количество публикаций этой
+организации \* С учетом фракционализации country - Страна region -
+Регион
+
+```{r}
+df1 <- data_frac %>% 
+  group_by(organisation_full) %>% 
+  summarise(total_pub = sum(frac),
+            country = paste(sort(unique(country)),collapse="; "),
+            region = paste(sort(unique(region)),collapse="; "))
+df2 <- data_frac %>% 
+  group_by(organisation_full, year_group) %>% 
+  summarise(count = sum(frac)) %>% 
+  pivot_wider(values_from = "count", names_from = "year_group") %>% 
+  ungroup() %>% 
+  select(organisation_full, `1990-2000`, `2001-2010`, `2011-2020`) 
+
+data <- left_join(df1, df2)  
+```
+
+q1 -- количество статей в 1 квартиле \*если статья 1 квартиля была
+половинкой статьи в результате фракционализации, то и здесь она
+считается половинкой. Ко всем квартилям это относится. q2 -- количество
+статей в 2 квартиле q3 -- количество статей в 3 квартиле q4 --
+количество статей в 4 квартиле q1_2000_2020 - количество статей в 1
+квартиле в периоде 2000-2020
+
+```{r}
+df1 <- data_frac %>% 
+  group_by(organisation_full, Q) %>% 
+  summarise(count = sum(frac)) %>% 
+  pivot_wider(values_from = "count", names_from = "Q") %>% 
+  ungroup() %>% 
+  select(organisation_full, `Q1`, `Q2`, `Q3`, `Q4`, `NA`) 
+
+df2 <- data_frac %>% 
+  filter(Q == "Q1") %>% 
+  filter(year >= 2000) %>% 
+  group_by(organisation_full) %>% 
+  summarise(q1_2000_2020 = sum(frac))
+
+df3 <- df1 %>% left_join(df2)
+
+data <- data %>% left_join(df3)
+```
+
+research_areas - 15 переменных и в них количество публикаций организации
+в этой категории. Если нескольким категориям, то присвоить часть статьи.
+Фракционализовать.
+
+```{r}
+df1 <- data_frac %>% select(UT, organisation_full, frac, research_areas) %>% 
+  mutate(id = row_number()) %>% 
+  separate_rows(research_areas, sep = ";") %>% 
+  mutate(research_areas = str_trim(research_areas, "both")) %>% 
+  group_by(id) %>% 
+  mutate(n_fields = length(organisation_full)) %>% ungroup() %>% select(-id) %>% 
+  mutate(frac_fields = 1 / n_fields) %>% 
+  # filter(UT == "WOS:000286815100004" | UT == "WOS:000356603200004") %>% 
+  group_by(UT, organisation_full, research_areas, frac) %>% 
+  summarise(count = sum(frac_fields)) %>% ungroup() %>% 
+  group_by(organisation_full, research_areas) %>% 
+  mutate(frac_frac = frac * count) %>% 
+  ungroup() %>% 
+  group_by(organisation_full, research_areas) %>% 
+  summarise(frac_frac_frac = sum(frac_frac)) %>% ungroup() %>% 
+  pivot_wider(values_from = "frac_frac_frac", names_from = "research_areas") 
+
+data <- data %>% left_join(df1)
+```
+
+field - 3 переменных SSCI, AHCI, SSCI/AHCI -- и число публикаций в
+каждой категории
+
+```{r}
+df1 <- data_frac %>% 
+  group_by(organisation_full, field) %>% 
+  summarise(count = sum(frac)) %>% 
+  pivot_wider(values_from = "count", names_from = "field") %>% 
+  ungroup() 
+
+data <- data %>% left_join(df1)
+```
+
+Фракционализация TC и mncs и top
+
+```{r проба}
+# Проба Фракционализации TC
+
+df1 <- data_frac %>% select(UT, organisation_full, frac, TC) %>%
+  filter(UT == "WOS:000286815100004" | UT == "WOS:000356603200004" | UT == "WOS:000085344600006") %>%
+  # mutate(paper = case_when(UT == "WOS:000286815100004" ~ "A",
+  #                          UT == "WOS:000356603200004" ~ "B",
+  #                          TRUE ~ "C"), .before = "UT") %>%
+
+  mutate(TC_f = TC * frac) %>%
+  # group_by(organisation_full) %>%
+  # mutate(pp = length(unique(UT))) %>% ungroup() %>%
+  group_by(organisation_full, UT) %>%
+  summarise(TC_fsum = sum(TC_f, na.rm = TRUE)) %>% ungroup() %>%
+  group_by(organisation_full) %>%
+  summarise(TC_fmean = mean(TC_fsum, na.rm = TRUE))
+
+df2 <- data_non_frac %>%
+  filter(UT == "WOS:000286815100004" | UT == "WOS:000356603200004" | UT == "WOS:000085344600006") %>%
+  group_by(organisation_full) %>%
+  summarise(TC = mean(TC, na.rm = TRUE))
+            
+df2 <- df2 %>% left_join(df1)
+
+data_frac %>% select(UT, organisation_full, frac, TC) %>%
+  filter(UT == "WOS:000286815100004" | UT == "WOS:000356603200004" | UT == "WOS:000085344600006") %>%
+  mutate(TC_f = TC * frac) %>%
+  group_by(organisation_full) %>%
+  mutate(pp = length(unique(UT))) %>% ungroup() %>%
+  mutate(pp_f = pp * frac) %>%
+  group_by(organisation_full, UT) %>%
+  mutate(TC_fsum = mean(TC_f, na.rm = TRUE)) %>% ungroup() %>%
+  group_by(organisation_full) %>%
+  summarise(TC_fmean = sum(TC_fsum, na.rm = TRUE) / pp_f)
+
+df2 <- df2 %>% left_join(df1)
+
+# write_csv(df1, "df1.csv")
+```
+
+```{r}
+# Фракционализация TC
+df1 <- data_frac %>% select(UT, organisation_full, frac, TC) %>% 
+  # filter(UT == "WOS:000286815100004" | UT == "WOS:000356603200004" | UT == "WOS:000085344600006") %>% 
+  mutate(TC_f = TC * frac) %>% 
+  # group_by(organisation_full) %>% 
+  # mutate(pp = length(unique(UT))) %>% ungroup() %>% 
+  group_by(organisation_full, UT) %>% 
+  summarise(TC_fsum = sum(TC_f, na.rm = TRUE)) %>% ungroup() %>% 
+  group_by(organisation_full) %>% 
+  summarise(TC_frac_mean = mean(TC_fsum, na.rm = TRUE))
+
+data <- data %>% left_join(df1)
+
+# Фракционализация mncs
+df1 <- data_frac %>% select(UT, organisation_full, frac, mncs) %>% 
+  # filter(UT == "WOS:000286815100004" | UT == "WOS:000356603200004" | UT == "WOS:000085344600006") %>% 
+  mutate(mncs_f = mncs * frac) %>% 
+  # group_by(organisation_full) %>% 
+  # mutate(pp = length(unique(UT))) %>% ungroup() %>% 
+  group_by(organisation_full, UT) %>% 
+  summarise(mncs_fsum = sum(mncs_f, na.rm = TRUE)) %>% ungroup() %>% 
+  group_by(organisation_full) %>% 
+  summarise(mncs_frac_mean = mean(mncs_fsum, na.rm = TRUE))
+
+data <- data %>% left_join(df1)
+
+## Фракционализация top_
+
+df1 <- data_frac %>% select(UT, organisation_full, frac, starts_with("top_")) %>% 
+  # filter(UT == "WOS:000286815100004" | UT == "WOS:000356603200004" | UT == "WOS:000085344600006") %>% 
+  mutate(top_1_fr = top_1 * frac,
+         top_10_fr = top_10 * frac,
+         top_25_fr = top_25 * frac,
+         top_50_fr = top_50 * frac) %>% 
+  group_by(organisation_full) %>% 
+  summarise(top_1_fr = sum(top_1_fr),
+            top_10_fr = sum(top_10_fr),
+            top_25_fr = sum(top_25_fr),
+            top_50_fr = sum(top_50_fr))
+
+data <- data %>% left_join(df1)
+```
+
+collab_type -- категориальные переменные с число публикаций по каждой
+категории collab_type
+
+```{r}
+df1 <- data_frac %>% 
+  group_by(organisation_full, collab_type) %>% 
+  summarise(count = sum(frac)) %>% 
+  pivot_wider(values_from = "count", names_from = "collab_type") %>% 
+  ungroup() 
+
+data <- data %>% left_join(df1)
+
+write_csv(data, "data_frac.csv")
+openxlsx::write.xlsx(data, "data_frac.xlsx")
+```
