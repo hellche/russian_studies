@@ -102,15 +102,27 @@ all_test <- function(x, ...) {
 data <- read_csv("data/data_clean.csv")
 ```
 
+::: callout-tip
+Impact of Publications Для всего раздела.
+Использовать сущность, где статья записана одной строчкой, а не многими в случае многих авторов.
+Если статья принадлежит нескольким регионам, то присвоить каждому региону статью.
+То есть не фракционализировать.
+То есть не должно быть ситуации, когда у статьи 5 авторов из России, и это 5 строчек в базе, это должна остаться 1 строчка.
+:::
+
 Выброс у Азии это статья `The impact of national culture and economic ideology on managerial work values: A study of the United States, Russia, Japan, and China` (WOS:A1997WX87900008) где 4 соавтора и два из них из Азии. Соавторы этой статьи из других регионов растворились в среднем для своего региона того года. В Азии мало наблюдений, поэтому это выброс не растворился в среднем. 
 
 
 ## 1. Средний импакт
 
+::: callout-tip
+Фракционализация по общим требованиям к разделу  Impact of Publications.
+:::
+
 ```{r}
 #| fig.dim = c(9, 3)
 
-df <- data %>% # distinct(UT, .keep_all = TRUE) %>% 
+df <- data %>% distinct(UT, region, .keep_all = TRUE) %>% 
   # filter(region == "Asia") %>% 
   filter(region != "Unknown") %>% 
   group_by(year, region) %>% 
@@ -135,7 +147,7 @@ p1 <- df %>% ggplot(aes(x=year, y=mean_TC, fill=region)) +
         axis.text.y = element_text(size = 8)) 
 
 
-df <- data %>% # distinct(UT, .keep_all = TRUE) %>% #select(year,region,field) %>% 
+df <- data %>% distinct(UT, region, .keep_all = TRUE) %>% 
 filter(region != "Unknown") %>% 
   group_by(year,region) %>% 
   summarise(mean_TC = round(mean(TC), 2),
@@ -159,7 +171,7 @@ p2 <- df %>%
   theme(axis.text.x = element_text(size = 7, angle = 0, vjust=0.5),
         axis.text.y = element_text(size = 8)) 
 
-df <- data %>% # distinct(UT, .keep_all = TRUE) %>% #select(year,region,field) %>% 
+df <- data %>% distinct(UT, region, .keep_all = TRUE) %>% 
 filter(region != "Unknown") %>% 
   mutate(zero_cit = case_when(TC < 1 ~ "zero cit",
                               TRUE ~ "have cit"))  
@@ -191,10 +203,17 @@ ggplotly(p3)
 
 ## 2. Страны и динамика их цитируемости 
 
+
+::: callout-tip
+- Table 1 и Table 2 в impact of publications добавить общее N публикаций
+::: 
+
 Таблица с основными странами, разделение на 3 периода и следующие показатели в каждом периоде показать: кол-во публикаций, MNSC, средняя цитируемость на статью.  
 
-**Важно:** статьи в соавторстве приписаны как +1 к стране каждого
-соавтора.
+
+::: callout-tip
+**Важно:** если у статьи два автора из россии и один с германии. Мы прибавляем +1 статью для россии (НЕ +2!) и +1 германии.
+::: 
 
 `n - число статей`
 `I - период 1990-2000 / II - период 2001-2010 / III - период 2011-2020`
@@ -204,40 +223,41 @@ ggplotly(p3)
 ```{r}
 
 # все три периода в большой таблице
-data %>% #distinct(UT, .keep_all = TRUE) %>% 
+data %>% distinct(UT, country, .keep_all = TRUE) %>% 
   mutate(year_group2 = case_when(year_group == "1990-2000" ~ "I",
-                                year_group == '2001-2010' ~ "II",
-                                TRUE ~ "III")) %>% 
+                                 year_group == '2001-2010' ~ "II",
+                                 TRUE ~ "III")) %>% 
   mutate(country = case_when(is.na(country) ~ "Unknown",
                              TRUE ~ country)) %>% 
   # group_by(country) %>% mutate(country = case_when(n() < 50 ~ "OTHER (< 50 pubs 1990-2020)",
   #                                                  TRUE ~ country)) %>% ungroup() %>% 
-
-  group_by(country, year_group2) %>% summarise(n=length(organisation_full),
-                                              tc = mean(TC),
-                                              mncs = mean(mncs)) %>% 
+  group_by(country) %>% mutate(n_tot = length(organisation_full)) %>% 
+  group_by(country, year_group2, n_tot) %>% summarise(n = length(organisation_full),
+                                               tc = mean(TC),
+                                               mncs = mean(mncs)) %>% 
  
-  pivot_wider(values_from = c(n,tc,mncs), names_from = "year_group2") %>% 
-  ungroup() %>% arrange(desc(`n_III`)) %>%
-  select(country, n_I, n_II, n_III,tc_I,tc_II,tc_III,mncs_I,mncs_II,mncs_III) %>% 
-datatable(rownames = FALSE, 
-          options = list(pageLength = 10,
-                         headerCallback = DT::JS("function(thead) {",
+  pivot_wider(values_from = c(n, tc, mncs), names_from = "year_group2") %>% 
+  ungroup() %>% arrange(desc(n_tot)) %>%
+  select(country, n_tot, n_I, n_II, n_III, tc_I, tc_II, tc_III, mncs_I, mncs_II, mncs_III) %>% 
+  
+  datatable(rownames = FALSE, 
+            options = list(pageLength = 10,
+                            headerCallback = DT::JS("function(thead) {",
                                                  "  $(thead).css('font-size',
                                                  '0.6em');",
                                                  "}"
                                                  ))) %>% 
-  DT::formatStyle(columns = c(1:10), fontSize = '80%') %>%  
-  formatRound(columns=c(5:10), digits=1)
+  DT::formatStyle(columns = c(1:11), fontSize = '80%') %>%  
+  formatRound(columns = c(6:11), digits = 1)
 ```
 
 ## 3. Регионы: доли статей в топах
 
 Средние значения показателей вхождения в топ по годам для регионов на отдельных графиках -- доли статей в топе 1, 10 и 25. Три графика -- линии это для регионов.  
 
-
-`проверить порядок фильтрации region везде где нет группы region == Unknown`
-
+::: callout-tip
+Фракционализация по общим требованиям к разделу  Impact of Publications.
+:::
 
 ::: panel-tabset 
 
@@ -247,9 +267,9 @@ datatable(rownames = FALSE,
 
 #| fig.dim = c(6, 3)
 
-df <- data %>% #distinct(UT, .keep_all = TRUE) %>% 
+df <- data %>% distinct(UT, region, .keep_all = TRUE) %>% 
   select(year, region, top_1, top_10, top_25) %>% 
-filter(region != "Unknown") %>% 
+  filter(region != "Unknown") %>% 
   filter(region != "Other") %>% 
   group_by(year, region) %>% mutate(count = length(top_1)) %>% ungroup() %>% 
   group_by(year, region, count) %>% summarise(top_1 = sum(top_1),
@@ -276,7 +296,7 @@ p1 <- df %>% ggplot(aes(x=year, value, color=top_x, group = top_x)) +
       subtitle = "светалая линия - реальные значения; темная линия - скользящее среднее (шаг = 3 года)") +
   theme_bw() +
   scale_color_brewer(palette = "Dark2", direction = -1) +
-  guides(color=guide_legend(override.aes = list(size=5))) + 
+  # guides(color=guide_legend(override.aes = list(size=5))) + 
   theme(panel.grid = element_blank(),
         panel.grid.major.y = element_line(size=0.1, color = "grey70", linetype = "solid")) +
   theme(strip.background = element_rect(fill = NA),
@@ -297,20 +317,21 @@ p1
 
 #| fig.dim = c(7, 3)
 
-df <- data %>% #distinct(UT, .keep_all = TRUE) %>% 
+df <- data %>% distinct(UT, region, .keep_all = TRUE) %>% 
   select(year, region, top_1, top_10, top_25) %>% 
-filter(region != "Unknown") %>% 
+  filter(region != "Unknown") %>% 
   filter(region != "Other") %>% 
 
   group_by(year, region) %>% mutate(count = length(top_1)) %>% ungroup() %>% 
   group_by(year, region, count) %>% summarise(top_1 = sum(top_1),
-                                               top_10 = sum(top_10),
-                                               top_25 = sum(top_25)) %>% ungroup() %>% 
+                                              top_10 = sum(top_10),
+                                              top_25 = sum(top_25)) %>% ungroup() %>% 
 
   mutate(top_1_perc = round(100 * top_1 / count, 2),
          top_10_perc = round(100 * top_10 / count, 2),
          top_25_perc = round(100 * top_25 / count, 2)) %>% 
-  pivot_longer(-c(year,region, count, top_1, top_10, top_25), names_to = "top_x", values_to = "value") 
+  pivot_longer(-c(year,region, count, top_1, top_10, top_25), 
+               names_to = "top_x", values_to = "value") 
 
 p1 <- df %>% ggplot(aes(x=year, value, color=top_x)) + 
   geom_line(alpha = 0.5, size = 0.5) +
@@ -323,16 +344,16 @@ p1 <- df %>% ggplot(aes(x=year, value, color=top_x)) +
   scale_y_continuous(labels = function(x) paste0(x, "%")) +
   facet_wrap(~region, nrow = 1) +
   labs(title = "Fig 4: Доля статей, входящих топ",
-      subtitle = "светалая линия - реальные значения; темная линия - скользящее среднее (шаг = 3 года)") +
+       subtitle = "светалая линия - реальные значения; темная линия - скользящее среднее (шаг = 3 года)") +
   theme_bw() +
   scale_color_brewer(palette = "Dark2", direction = -1) +
-  guides(color=guide_legend(override.aes = list(size=5))) + 
+  # guides(color=guide_legend(override.aes = list(size=5))) + 
   theme(panel.grid = element_blank(),
         panel.grid.major.y = element_line(size=0.1, color = "grey70", linetype = "solid")) +
   theme(strip.background = element_rect(fill = NA),
         strip.text = element_text(colour = 'black',size = 8)) +
   theme(axis.title = element_blank(),
-        legend.position = "bottom",
+        # legend.position = "bottom",
         legend.title= element_blank()) +
   theme(axis.text.x = element_text(size = 7, angle = 45, vjust=0.5),
         axis.text.y = element_text(size = 8)
@@ -347,22 +368,22 @@ ggplotly(p1) %>% layout(legend = list(orientation = "h",
 
 :::
 
-
 ```{r}
 #| fig.dim = c(7, 3)
-df <- data %>% #distinct(UT, .keep_all = TRUE) %>% 
+df <- data %>% distinct(UT, region, .keep_all = TRUE) %>% 
   select(year, region, top_1, top_10, top_25) %>% 
-filter(region != "Unknown") %>% 
-filter(region != "Other") %>% 
+  filter(region != "Unknown") %>% 
+  filter(region != "Other") %>% 
   group_by(year, region) %>% mutate(count = length(top_1)) %>% ungroup() %>% 
   group_by(year, region, count) %>% summarise(top_1 = sum(top_1),
-                                               top_10 = sum(top_10),
-                                               top_25 = sum(top_25)) %>% ungroup() %>% 
+                                              top_10 = sum(top_10),
+                                              top_25 = sum(top_25)) %>% ungroup() %>% 
 
   mutate(top_1_perc = 100 * top_1 / count,
          top_10_perc = 100 * top_10 / count,
          top_25_perc = 100 * top_25 / count) %>% 
-  pivot_longer(-c(year,region, count, top_1, top_10, top_25), names_to = "top_x", values_to = "value")
+  pivot_longer(-c(year,region, count, top_1, top_10, top_25), 
+               names_to = "top_x", values_to = "value")
 
 p2 <- df %>% ggplot(aes(x=year, count)) + 
   geom_col(alpha = 0.4) +
@@ -384,8 +405,18 @@ ggplotly(p2)
 
 ## 4. Страны: динамика вхожденя в топ 
 
-Таблица с основными странами, разделение на 3 периода и следующие показатели в каждом периоде показать: кол-во публикаций, кол-во статей в топе 1, 10 и 25 (в скобках доли статей в топе).  
 
+::: callout-tip
+- Table 1 и Table 2 в impact of publications добавить общее N публикаций
+::: 
+
+
+
+::: callout-tip
+**Важно:** если у статьи два автора из россии и один с германии. Мы прибавляем +1 статью для россии (НЕ +2!) и +1 германии.
+::: 
+
+Таблица с основными странами, разделение на 3 периода и следующие показатели в каждом периоде показать: кол-во публикаций, кол-во статей в топе 1, 10 и 25 (в скобках доли статей в топе).  
 
 ##### Table 2: Страны: динамика вхожденя в топ 
 
@@ -394,23 +425,30 @@ ggplotly(p2)
 ###### 1990-2000
 
 ```{r}
-data %>% #distinct(UT, .keep_all = TRUE) %>% 
+
+df <- data %>% distinct(UT, country, .keep_all = TRUE) %>% 
+  mutate(country = case_when(is.na(country) ~ "Unknown",
+                             TRUE ~ country)) %>% 
+  group_by(country) %>% summarise(n_tot_all = length(organisation_full)) 
+
+data %>% distinct(UT, country, .keep_all = TRUE) %>% 
   filter(year_group == "1990-2000") %>% 
   mutate(country = case_when(is.na(country) ~ "Unknown",
                              TRUE ~ country)) %>% 
-  # group_by(country) %>% mutate(country = case_when(n() < 50 ~ "OTHER (< 50 pubs 1990-2000)",
-  #                                                  TRUE ~ country)) %>% ungroup() %>% 
 
-  group_by(country) %>% summarise(count=length(organisation_full),
+  group_by(country) %>% summarise(n = length(organisation_full),
                                               top_1 = sum(top_1),
                                               top_10 = sum(top_10),
                                               top_25 = sum(top_25)) %>% ungroup() %>% 
 
-  mutate(top_1_perc = 100 * top_1 / count,
-         top_10_perc = 100 * top_10 / count,
-         top_25_perc = 100 * top_25 / count) %>% 
+  mutate(top_1_perc = 100 * top_1 / n,
+         top_10_perc = 100 * top_10 / n,
+         top_25_perc = 100 * top_25 / n) %>% 
   
-  ungroup() %>% arrange(desc(count)) %>%
+  ungroup() %>% left_join(df) %>% 
+  mutate(n_tot_all_time = n_tot_all, .before = n) %>% 
+  select(-n_tot_all) %>% 
+  arrange(desc(n_tot_all_time)) %>%
   
 datatable(rownames = FALSE, 
           options = list(pageLength = 10,
@@ -419,31 +457,36 @@ datatable(rownames = FALSE,
                                                  '0.6em');",
                                                  "}"
                                                  ))) %>% 
-  DT::formatStyle(columns = c(1:8), fontSize = '80%') %>% 
-  formatRound(columns=c(6:8), digits=1)
-  
+  DT::formatStyle(columns = c(1:9), fontSize = '80%') %>% 
+  formatRound(columns=c(7:9), digits=1)
 ```
 
 ###### 2001-2010
 
 ```{r}
-data %>% #distinct(UT, .keep_all = TRUE) %>% 
+df <- data %>% distinct(UT, country, .keep_all = TRUE) %>% 
+  mutate(country = case_when(is.na(country) ~ "Unknown",
+                             TRUE ~ country)) %>% 
+  group_by(country) %>% summarise(n_tot_all = length(organisation_full)) 
+
+data %>% distinct(UT, country, .keep_all = TRUE) %>% 
   filter(year_group == "2001-2010") %>% 
   mutate(country = case_when(is.na(country) ~ "Unknown",
                              TRUE ~ country)) %>% 
-  # group_by(country) %>% mutate(country = case_when(n() < 50 ~ "OTHER (< 50 pubs 2001-2010)",
-  #                                                  TRUE ~ country)) %>% ungroup() %>% 
 
-  group_by(country) %>% summarise(count=length(organisation_full),
+  group_by(country) %>% summarise(n = length(organisation_full),
                                               top_1 = sum(top_1),
                                               top_10 = sum(top_10),
                                               top_25 = sum(top_25)) %>% ungroup() %>% 
 
-  mutate(top_1_perc = 100 * top_1 / count,
-         top_10_perc = 100 * top_10 / count,
-         top_25_perc = 100 * top_25 / count) %>% 
+  mutate(top_1_perc = 100 * top_1 / n,
+         top_10_perc = 100 * top_10 / n,
+         top_25_perc = 100 * top_25 / n) %>% 
   
-  ungroup() %>% arrange(desc(count)) %>%
+  ungroup() %>% left_join(df) %>% 
+  mutate(n_tot_all_time = n_tot_all, .before = n) %>% 
+  select(-n_tot_all) %>% 
+  arrange(desc(n_tot_all_time)) %>%
   
 datatable(rownames = FALSE, 
           options = list(pageLength = 10,
@@ -452,31 +495,37 @@ datatable(rownames = FALSE,
                                                  '0.6em');",
                                                  "}"
                                                  ))) %>% 
-  DT::formatStyle(columns = c(1:8), fontSize = '80%') %>% 
-  formatRound(columns=c(6:8), digits=1)
+  DT::formatStyle(columns = c(1:9), fontSize = '80%') %>% 
+  formatRound(columns=c(7:9), digits=1)
   
 ```
 
 ###### 2011-2020
 
 ```{r}
-data %>% #distinct(UT, .keep_all = TRUE) %>% 
+df <- data %>% distinct(UT, country, .keep_all = TRUE) %>% 
+  mutate(country = case_when(is.na(country) ~ "Unknown",
+                             TRUE ~ country)) %>% 
+  group_by(country) %>% summarise(n_tot_all = length(organisation_full)) 
+
+data %>% distinct(UT, country, .keep_all = TRUE) %>% 
   filter(year_group == "2011-2020") %>% 
   mutate(country = case_when(is.na(country) ~ "Unknown",
                              TRUE ~ country)) %>% 
-  # group_by(country) %>% mutate(country = case_when(n() < 50 ~ "OTHER (< 50 pubs 2011-2020)",
-  #                                                  TRUE ~ country)) %>% ungroup() %>% 
 
-  group_by(country) %>% summarise(count=length(organisation_full),
+  group_by(country) %>% summarise(n = length(organisation_full),
                                               top_1 = sum(top_1),
                                               top_10 = sum(top_10),
                                               top_25 = sum(top_25)) %>% ungroup() %>% 
 
-  mutate(top_1_perc = 100 * top_1 / count,
-         top_10_perc = 100 * top_10 / count,
-         top_25_perc = 100 * top_25 / count) %>% 
+  mutate(top_1_perc = 100 * top_1 / n,
+         top_10_perc = 100 * top_10 / n,
+         top_25_perc = 100 * top_25 / n) %>% 
   
-  ungroup() %>% arrange(desc(count)) %>%
+  ungroup() %>% left_join(df) %>% 
+  mutate(n_tot_all_time = n_tot_all, .before = n) %>% 
+  select(-n_tot_all) %>% 
+  arrange(desc(n_tot_all_time)) %>%
   
 datatable(rownames = FALSE, 
           options = list(pageLength = 10,
@@ -485,9 +534,8 @@ datatable(rownames = FALSE,
                                                  '0.6em');",
                                                  "}"
                                                  ))) %>% 
-  DT::formatStyle(columns = c(1:8), fontSize = '80%')%>% 
-  formatRound(columns=c(6:8), digits=1)
-  
+  DT::formatStyle(columns = c(1:9), fontSize = '80%') %>% 
+  formatRound(columns=c(7:9), digits=1)
 ```
 
 :::
@@ -503,6 +551,10 @@ datatable(rownames = FALSE,
 На рисунке мы фактически видим среднее средних. 
 
 По шагам: В 1990 году для каждой институции мы считаем `среднее TC`. выбираем топ 5 институций, у котрых самый высокий `средний TC` в 1990. Для этих 5 институции мы счимтаем `средннее средних TC`. Таким образом мы получаем точку, которая сейчас отображена на графике в 1990 для группы топ 5 лучших. Чтобы получить топ 10 мы берем для 10 лучших `средннее средних TC` (5 институций у нас те же самые что и в топ 5). Для топ 20 по тому же принципу (в топ 20 входит топ 5 и 10). Группа "все остальные" это от топ 21 места до самой последней институции. Для каждого года всё рассчитывается по новой. Для `mncs` всё считается отдельно по тому же принципу. На вкладках `Таблица_ТС/mncs` можно посмотреть конкретные значения более подробно.
+
+::: callout-tip
+Нет никакой фракционализации
+:::
 
 ::: panel-tabset 
 
@@ -651,85 +703,132 @@ data %>% # distinct(UT, .keep_all = TRUE) %>%
 
 ## 6. Доли регионов в самом лучшем аутпуте
 
-Взять только 25% самых цитируемых публикаций в SSCI и в AHCI по отдельности в каждый из годов. График с долями регионов в самом цитируемом аутпуте разными линиями. Фракционализировать по странам. Подумать, как наглядно такое показать для стран?
+::: callout-tip
+в 6. Доли регионов в самом лучшем аутпуте взять доля в 10% а не доля в 25% и сделать одну общую картинку
+:::
 
-**Важно**: без фракционализации. Оставлены все строки по переменной `top_25 == 1`
+::: callout-tip
+Фракционализация по общим требованиям к разделу  Impact of Publications.
+:::
 
+::: panel-tabset 
+
+##### Топ 10%
 
 ```{r}
-
-p2 <- data %>% filter(region != "Unknown") %>% 
-  separate_rows(field, sep=";") %>% 
-  filter(top_25 == 1) %>% 
-  group_by(field, year, region) %>% count() %>% ungroup() %>% 
-  group_by(field, year) %>% mutate(sh = 100* n / sum(n)) %>% 
+data %>% distinct(UT, region, .keep_all = TRUE) %>% 
+  filter(region != "Unknown") %>% 
+  # separate_rows(field, sep=";") %>% 
+  filter(top_10 == 1) %>% 
+  group_by(year, region) %>% count() %>% ungroup() %>% 
+  group_by(year) %>% mutate(sh = 100* n / sum(n)) %>% 
   ggplot(aes(year, sh, color = region)) +
   geom_line(alpha = 0.4, size = 0.4) +
   geom_point(alpha = 0.4, size = 0.4) +
-  geom_ma(ma_fun = SMA, n = 3, linetype = "solid", size = 1.1) +
+  geom_ma(ma_fun = SMA, n = 3, linetype = "solid") +
   # scale_x_continuous(
   #       labels = as.character(seq(min(df$year), max(df$year), by = 1)),
   #       breaks = seq(min(df$year), max(df$year), by = 1),
   #       expand=c(0,0)
   #   ) +
   scale_y_continuous(labels = function(x) paste0(x, "%")) +
-  facet_wrap(~field, nrow = 1) +
-  labs(title = "Fig 7: Доли регионов в самом лучшем аутпуте",
+  # facet_wrap(~field, nrow = 1) +
+  labs(title = "Fig 7: Доли регионов в самом лучшем аутпуте (top_10)",
       subtitle = "светалая линия - реальные значения; темная линия - скользящее среднее (шаг = 3 года)") +
   theme_bw() +
   scale_color_brewer(palette = "Paired") +
-  theme(legend.position = "bottom",
-        legend.justification ='left') + 
+  # theme(legend.position = "bottom",
+  #       legend.justification ='left') + 
   theme(panel.grid = element_blank(),
         panel.grid.major.y = element_line(size=0.1, color = "grey70", linetype = "solid")) +
   theme(strip.background = element_rect(fill = NA),
         strip.text = element_text(colour = 'black',size = 7)) +
   theme(axis.title = element_blank(),
         legend.title= element_blank()) +
-  theme(axis.text.x = element_text(size = 7, angle = 45, vjust=0.5),
+  theme(axis.text.x = element_text(size = 7),
         axis.text.y = element_text(size = 8))   
 
-p2
 ```
+
+##### Топ 25%
+
+```{r}
+data %>% distinct(UT, region, .keep_all = TRUE) %>% 
+  filter(region != "Unknown") %>% 
+  # separate_rows(field, sep=";") %>% 
+  filter(top_25 == 1) %>% 
+  group_by(year, region) %>% count() %>% ungroup() %>% 
+  group_by(year) %>% mutate(sh = 100* n / sum(n)) %>% 
+  ggplot(aes(year, sh, color = region)) +
+  geom_line(alpha = 0.4, size = 0.4) +
+  geom_point(alpha = 0.4, size = 0.4) +
+  geom_ma(ma_fun = SMA, n = 3, linetype = "solid", size = 2) +
+  # scale_x_continuous(
+  #       labels = as.character(seq(min(df$year), max(df$year), by = 1)),
+  #       breaks = seq(min(df$year), max(df$year), by = 1),
+  #       expand=c(0,0)
+  #   ) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  # facet_wrap(~field, nrow = 1) +
+  labs(title = "Fig 7: Доли регионов в самом лучшем аутпуте (top_25)",
+      subtitle = "светалая линия - реальные значения; темная линия - скользящее среднее (шаг = 3 года)") +
+  theme_bw() +
+  scale_color_brewer(palette = "Paired") +
+  # theme(legend.position = "bottom",
+  #       legend.justification ='left') + 
+  theme(panel.grid = element_blank(),
+        panel.grid.major.y = element_line(size=0.1, color = "grey70", linetype = "solid")) +
+  theme(strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = 'black',size = 7)) +
+  theme(axis.title = element_blank(),
+        legend.title= element_blank()) +
+  theme(axis.text.x = element_text(size = 7),
+        axis.text.y = element_text(size = 8))   
+
+```
+:::
 
 ## 7. Доли регионов в Q1
 
 Взять только статьи в журналах 1 квартиля в каждый из год (только с 2000 года период). Показать доли регионов по годам разными линиями. Фракционализировать по странам. Подумать, как наглядно такое показать для стран?
 
-**Важно**: без фракционализации.
+
+::: callout-tip
+Fig.8 Не делать различия на AHCI и SSCI
+Фракционализация по общим требованиям к разделу  Impact of Publications.
+:::
 
 ```{r}
-
-p2 <- data %>%  filter(region != "Unknown") %>% 
-  separate_rows(field, sep=";") %>% 
+data %>%  
+  distinct(UT, region, .keep_all = TRUE) %>% 
+  filter(region != "Unknown") %>% 
   filter(Q == "Q1") %>% filter(year >= 2000) %>% 
-  group_by(field, year, region) %>% count() %>% ungroup() %>% 
-  group_by(field, year) %>% mutate(sh = 100* n / sum(n)) %>% 
+  group_by(year, region) %>% count() %>% ungroup() %>% 
+  group_by(year) %>% mutate(sh = 100 * n / sum(n)) %>% 
   ggplot(aes(year, sh, color = region)) +
-  geom_line(alpha = 0.4, size = 0.4) +
-  geom_point(alpha = 0.4, size = 0.4) +
-  geom_ma(ma_fun = SMA, n = 3, linetype = "solid", size = 1.1) +
+  geom_line(alpha = 0.4, size = 0.6) +
+  geom_point(alpha = 0.4, size = 0.6) +
+  geom_ma(ma_fun = SMA, n = 3, linetype = "solid") +
   # scale_x_continuous(
   #       labels = as.character(seq(min(df$year), max(df$year), by = 1)),
   #       breaks = seq(min(df$year), max(df$year), by = 1),
   #       expand=c(0,0)
   #   ) +
   scale_y_continuous(labels = function(x) paste0(x, "%")) +
-  facet_wrap(~field, nrow = 1) +
   labs(title = "Fig 8: Доли регионов в Q1",
       subtitle = "светалая линия - реальные значения; темная линия - скользящее среднее (шаг = 3 года)") +
   theme_bw() +
   scale_color_brewer(palette = "Paired") +
-  theme(legend.position = "bottom",
-        legend.justification ='left') + 
+  # theme(legend.position = "bottom",
+  #       legend.justification ='left') + 
   theme(panel.grid = element_blank(),
-        panel.grid.major.y = element_line(size=0.1, color = "grey70", linetype = "solid")) +
+        panel.grid.major.y = element_line(size = 0.1, color = "grey70", linetype = "solid")) +
   theme(strip.background = element_rect(fill = NA),
         strip.text = element_text(colour = 'black',size = 7)) +
   theme(axis.title = element_blank(),
         legend.title= element_blank()) +
-  theme(axis.text.x = element_text(size = 7, angle = 45, vjust=0.5),
+  theme(axis.text.x = element_text(size = 7),
         axis.text.y = element_text(size = 8))   
 
-p2
+
 ```
