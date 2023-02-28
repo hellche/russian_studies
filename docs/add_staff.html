@@ -85,10 +85,6 @@ ul.task-list li input[type="checkbox"] {
     <a class="nav-link" href="./add_tab_fig.html">
  <span class="menu-text">III. INSTITUTIONS</span></a>
   </li>  
-  <li class="nav-item">
-    <a class="nav-link active" href="./add_staff.html" aria-current="page">
- <span class="menu-text">IV. ADD STAFF</span></a>
-  </li>  
 </ul>
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
   <li class="nav-item compact">
@@ -106,7 +102,22 @@ ul.task-list li input[type="checkbox"] {
 <!-- sidebar -->
 <!-- margin-sidebar -->
     <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-        
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#phd-ка-text" id="toc-phd-ка-text" class="nav-link active" data-scroll-target="#phd-ка-text">phd-ка Text</a></li>
+  <li><a href="#файл-с-таблицами-tables-for-site" id="toc-файл-с-таблицами-tables-for-site" class="nav-link" data-scroll-target="#файл-с-таблицами-tables-for-site">Файл с таблицами Tables for site</a>
+  <ul class="collapse">
+  <li><a href="#section" id="toc-section" class="nav-link" data-scroll-target="#section">1</a></li>
+  <li><a href="#section-1" id="toc-section-1" class="nav-link" data-scroll-target="#section-1">2</a></li>
+  <li><a href="#section-2" id="toc-section-2" class="nav-link" data-scroll-target="#section-2">3</a></li>
+  <li><a href="#section-3" id="toc-section-3" class="nav-link" data-scroll-target="#section-3">4</a></li>
+  </ul></li>
+  <li><a href="#section-4" id="toc-section-4" class="nav-link" data-scroll-target="#section-4">5</a></li>
+  <li><a href="#section-5" id="toc-section-5" class="nav-link" data-scroll-target="#section-5">6</a></li>
+  </ul>
+</nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
@@ -134,6 +145,8 @@ ul.task-list li input[type="checkbox"] {
 <div class="cell">
 
 </div>
+<section id="phd-ка-text" class="level2">
+<h2 class="anchored" data-anchor-id="phd-ка-text">phd-ка Text</h2>
 <div class="cell">
 
 </div>
@@ -177,7 +190,7 @@ Tip
 <li>for the 30-year period covering 1990–2020 the value of MNCS for Northern America publications is N (we can also observe that the recent papers tend to be cited less often – in 1990-2010 the MNCS was N while in 2011-2020 - N), the MNCS score for the European papers is N.</li>
 </ol>
 <ul>
-<li><p>в среднем MNCS в сша 1990–2020: 1.27</p></li>
+<li><p>в среднем MNCS в сша 1990-2020:</p></li>
 <li><p>по периодам США и Европа:</p></li>
 </ul>
 <div class="cell">
@@ -262,6 +275,29 @@ Tip
 <li>Data from citations provide a window into the impact of a region’s scientific production to the most cited output (Fig.10). In 1990-s the Northern America was the major contributor to the world’s pool of 10% top cited articles – almost all articles were published by authors from this region. With the growth of papers written by European researchers the share has started to decrease: the Northern America was 46 for 2008 and 25.4807692 for 2020.</li>
 </ol>
 <p>2015, Europe region overtaken the Northern America in the relative participation in the Top 10% – the region accounts for the <del>40%</del> 43.3333333 of all top articles while Northern America – <del>28%</del> 30.8333333 The proportion of Russian articles also increased from 1990 to 2020 from 1.1235955 to 22.5961538. The next Fig. 11 shows that publication of top cited articles is related to the publishing in high quality journals – the same pattern can be seen regarding the region’s share of papers published in Q1 journals.</p>
+<ol start="8" type="1">
+<li>While Russia is one of key players on the global research scene, as the country produced in 2020 about N percent of the Russian studies articles included in the WoS, the impact of articles is below world average.</li>
+</ol>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 5 × 3
+  region               n    sh
+  &lt;chr&gt;            &lt;int&gt; &lt;dbl&gt;
+1 Asia               112  8.62
+2 Europe             480 37.0 
+3 Northern America   360 27.7 
+4 Other               47  3.62
+5 Russia             300 23.1 </code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 1 × 1
+      n
+  &lt;int&gt;
+1  1156</code></pre>
+</div>
+</div>
 <div class="callout-warning callout callout-style-default callout-captioned">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
@@ -278,15 +314,124 @@ Warning
 <div class="cell">
 
 </div>
+</section>
+<section id="файл-с-таблицами-tables-for-site" class="level2">
+<h2 class="anchored" data-anchor-id="файл-с-таблицами-tables-for-site">Файл с таблицами Tables for site</h2>
+<p>katerina guba, [15 февр. 2023г., 20:06:35]: Тут только не забыть, что сейчас на сайте все, что странами ( до таблицы 3) сделано на полном датасете с необрезанными организациями, а с таблицы 3 на датасете, где только организации для сайта 428.</p>
+<p>То есть табличка 3 такая пограничная, она про страны но с инфо по организациям поэтому ее на обрезанном датасете.</p>
+<p>Все таблички с организациями на обрезанном</p>
+<section id="section" class="level3">
+<h3 class="anchored" data-anchor-id="section">1</h3>
+<div class="callout-tip callout callout-style-default callout-captioned">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-caption-container flex-fill">
+Tip
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Важно:</strong> если у статьи два автора из россии и один с германии. Мы прибавляем +1 статью для россии (НЕ +2) и +1 германии.</p>
+<p>полный датасет</p>
+</div>
+</div>
+<p>country 1990-2020 N<br>
+1990-2020 total (%) 1990-2020 cumulative total (%)<br>
+1990 N 1990 total (%)<br>
+2020 N 2020 total (%)</p>
 <div class="cell">
 
 </div>
-<ol start="8" type="1">
-<li><p>The final dataset includes 428 organizations from 33 different countries (institutions which have contributed at least 10 articles were considered).</p></li>
-<li><p>ВЕРНОЕ УТВЕРЖДЕНИЕ: For instance, if a publication has 4authors of which two belong to a particular organization, the publication for this organization is counted withaweightof2/4=0.5.</p></li>
+</section>
+<section id="section-1" class="level3">
+<h3 class="anchored" data-anchor-id="section-1">2</h3>
+<p>country<br>
+1990-2020N<br>
+Total Citations<br>
+mncs_I mncs_II mncs_III<br>
+t1% (share) t10% (share) t25% (share) - у страны 100 статей и t1% = 10, значит из 100 10 статей в топ1 % of non-cited articles</p>
+<div class="cell">
+
+</div>
+</section>
+<section id="section-2" class="level3">
+<h3 class="anchored" data-anchor-id="section-2">3</h3>
+<div class="callout-tip callout callout-style-default callout-captioned">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-caption-container flex-fill">
+Tip
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>обрезанный датасет</strong></p>
+</div>
+</div>
+<p>country<br>
+1990-2020 N publications<br>
+1990-2020 % publications of total<br>
+1990-2020 N organizations<br>
+1990-2020 % organizations of total Average N papers per organization N orgs in 1990<br>
+N orgs in 2020</p>
+<div class="cell">
+
+</div>
+</section>
+<section id="section-3" class="level3">
+<h3 class="anchored" data-anchor-id="section-3">4</h3>
+<div class="callout-tip callout callout-style-default callout-captioned">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-caption-container flex-fill">
+Tip
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>обрезанный датасет</strong></p>
+</div>
+</div>
+<p>Organizations<br>
+Country<br>
+total_pub<br>
+mncs_frac_mean top_10_fr_sh<br>
+Top1 Top2</p>
+<ol type="1">
+<li>В списке должно быть 79 органищаций, у которых больше 50 публ</li>
+<li>top1 - это входит ли в список 49 у которых больше по двум средним показателям и top2 - это входит в верхний квартиль по 2 показателям (то есть берутся не выше среднего а выше показателя 75% организаций), у меня получалось 25 организаций</li>
 </ol>
+<div class="cell">
+
+</div>
+</section>
+</section>
+<section id="section-4" class="level1">
+<h1>5</h1>
+<p>только 49 организаций топа, count и period - это из последней таблицы на сайте-гитхаба</p>
+<p>organisation_full<br>
+total_pub<br>
+country 1990-2000 I_sh_tot<br>
+2001-2010 II_sh_tot<br>
+2011-2020 III_sh_tot<br>
+count periods</p>
+<p>ЛЕЖИТ в <code>add_tab_fig.qmd</code></p>
+</section>
+<section id="section-5" class="level1">
+<h1>6</h1>
+<p>только 49 организаций топа organisation_full<br>
+country total_pub<br>
+[‘SSCI’] SSCI_%<br>
+[‘AHCI’] AHCI_%<br>
+area_1<br>
+N_1 sh_1</p>
+<p>ЛЕЖИТ в <code>add_tab_fig.qmd</code></p>
 
 
+</section>
 
 </main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">

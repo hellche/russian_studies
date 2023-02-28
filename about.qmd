@@ -8,6 +8,8 @@ knitr::opts_chunk$set(echo = FALSE,  warning = FALSE, message =  FALSE)
 ```
 
 ```{r packages}
+library(grid)
+library(ggrepel)
 library(tidyverse)
 library(haven)
 library(readr)
@@ -74,7 +76,6 @@ pvalue <- function(x, ...) {
     c("", sub("<", "&lt;", format.pval(p, digits=3, eps=0.001)))
 }
 
-
 #simulate.p.value = FALSE, B = 2000
 
 all_test <- function(x, ...) {
@@ -101,6 +102,78 @@ all_test <- function(x, ...) {
 ```{r data}
 data <- read_csv("data/data_clean.csv")
 ```
+
+```{r colors_factors}
+# myColors <- brewer.pal(12, "Paired")
+# myColors <- replace(myColors, myColors == "#FFFF99", "#ffdb4d")
+# myColors <- replace(myColors, myColors == "#FDBF6F", "#fb9004")
+# myColors <- replace(myColors, myColors == "#6A3D9A", "#a6a6a6")
+# myColors <- replace(myColors, myColors == "#fb9004", "#9358a7")
+# 
+# 
+# myColors <- replace(myColors, myColors == "#FF7F00", "red")
+# myColors <- replace(myColors, myColors == "#CAB2D6", "#FF7F00")
+# myColors <- replace(myColors, myColors == "red", "#CAB2D6")
+# 
+# myColors <- c(myColors, "#cc0066")
+# # myColors <- c("#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C",
+# #               "#FB9A99", "#E31A1C", "#cc0066","#9358a7",
+# #               "#CAB2D6", "#FF7F00", "#ffdb4d", 
+# #               "#B15928", "#a6a6a6")
+# 
+# areas <- data %>%
+#   separate_rows(research_areas, sep = ";") %>%
+#   mutate(research_areas = str_trim(research_areas, "both")) %>%
+#   group_by(research_areas) %>%
+#   mutate(research_areas = case_when(n() < 700 ~ "Other",
+#                                     TRUE ~ research_areas)) %>%
+#   count() %>% pull(research_areas)
+# 
+# my_color <- setNames(myColors, areas)
+# 
+# areas <- data %>%
+#   separate_rows(research_areas, sep = ";") %>%
+#   mutate(research_areas = str_trim(research_areas, "both")) %>%
+#   group_by(research_areas) %>%
+#   mutate(research_areas = case_when(n() < 700 ~ "Other",
+#                                     TRUE ~ research_areas)) %>%
+#   count() %>% arrange() %>% pull(research_areas)
+# 
+# areas <- areas[-10]
+# areas <- c(areas, "Other")
+
+myColors <- c("#A6CEE3", "#1F78B4", "#B2DF8A", 
+"#33A02C", "#CAB2D6", "#6A3D9A",
+"#FB9A99", "#E31A1C", "#FDBF6F", "#FF7F00", "#FFFF99", "#B15928",
+"#a6a6a6")
+
+areas <- c("Area Studies",  
+"Business, Economics & Management", 
+"Education & Information Science",  
+"Law",
+"Political Science", 
+"Sociology & Anthropology", 
+"Art",   
+"History",     
+"Language & Linguistics",   
+"Literature",  
+"Philosophy & Religion",   
+"Multidisciplinary",    
+"Other")
+my_color <- setNames(myColors, areas)
+
+
+# regions <- data %>% 
+#   group_by(region) %>% count() %>% arrange() %>% pull(region)
+regions <- c("Northern America","Europe", "Russia", "Asia", "Other")             
+
+# myColors_reg <- myColors[1:4] 
+myColors_reg <- c( "#9358a7", "#1F78B4", "#33A02C", "#FF7F00", "#ffdb4d")
+
+# show_col(myColors_reg)
+myColors_reg <- setNames(myColors_reg, regions)
+```
+
 
 ::: callout-tip
 Impact of Publications Для всего раздела.
@@ -201,6 +274,107 @@ ggplotly(p3)
 
 ```
 
+
+```{r II_Fig1}
+#| eval=FALSE
+sz <- 6
+df <- data %>% distinct(UT, region, .keep_all = TRUE) %>% 
+  # filter(region == "Asia") %>% 
+  filter(region != "Unknown") %>% 
+  group_by(year, region) %>% 
+  summarise(mean_TC = round(mean(TC), 2),
+            mean_mncs = round(mean(mncs), 2)) %>% 
+  mutate(region = factor(region, levels = regions)) 
+
+p1 <- df %>% ggplot(aes(x=year, y=mean_TC)) +#, fill=region)) + 
+  # geom_col() +
+  geom_col(alpha = 0.7 , size = 0.1, fill = "grey70", colour = "black") +
+  facet_wrap(~region, nrow = 1) +
+  labs(y = "mean TC") +
+  # scale_fill_manual(values = myColors_reg, limits = force) +
+  theme_test() +
+  theme(strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = 'black', size = sz)) +
+  theme(panel.grid = element_blank(),
+        legend.position = "none",
+        axis.title.x = element_blank(),
+        axis.title.y = element_text(size = sz),
+        axis.text.x = element_text(size = sz),
+        axis.text.y = element_text(size = sz))
+
+
+df <- data %>% distinct(UT, region, .keep_all = TRUE) %>% 
+filter(region != "Unknown") %>% 
+  group_by(year,region) %>% 
+  summarise(mean_TC = round(mean(TC), 2),
+            mean_mncs = round(mean(mncs), 2)) %>% 
+  mutate(region = factor(region, levels = regions)) 
+
+p2 <- df %>%  
+  ggplot(aes(x=year, y=mean_mncs)) + #, fill=region)) + 
+  # geom_col() +
+  geom_col(alpha = 0.7 , size = 0.1, fill = "grey70", colour = "black") +
+  facet_wrap(~region, nrow = 1) +
+  labs(y = "mean MNCS") +
+  # scale_fill_manual(values = myColors_reg, limits = force) +
+  theme_test() +
+  theme(strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = 'black', size = sz)) +
+  theme(panel.grid = element_blank(),
+        legend.position = "none",
+        axis.title.x = element_blank(),
+         axis.title.y = element_text(size = sz),
+        axis.text.x = element_text(size = sz),
+        axis.text.y = element_text(size = sz))
+
+df <- data %>% distinct(UT, region, .keep_all = TRUE) %>% 
+filter(region != "Unknown") %>% 
+  mutate(zero_cit = case_when(TC < 1 ~ "zero cit",
+                              TRUE ~ "have cit"))  %>% 
+  mutate(region = factor(region, levels = regions)) 
+
+p3 <- df %>%   
+  ggplot(aes(x=year, fill=zero_cit)) + 
+  geom_bar(position = "fill",
+           alpha = 0.7 , size = 0.1, colour = "black") +
+  scale_y_continuous(labels=scales::percent) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", size=0.3) +
+  facet_wrap(~region, nrow = 1) +
+  labs(fill = "") +
+  scale_fill_brewer(palette = "Paired") +
+  guides(fill = guide_legend(keyheight = 0.6, keywidth = 0.6)) + 
+  theme_test() +
+  theme(strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = 'black', size = sz)) +
+  theme(panel.grid = element_blank(),
+        legend.position = "bottom",
+        axis.title = element_blank(),
+        # axis.title.y = element_text(size = sz),
+        axis.text.x = element_text(size = sz),
+        axis.text.y = element_text(size = sz),
+        legend.text = element_text(size = sz))
+
+p1/p2/p3
+ggsave(filename = "II_Fig1_3_v2.tiff",
+       family="Helvetica",
+       units = "mm", dpi = 600,  width = 174,
+       height = 120)
+
+p2 
+
+ggsave(filename = "II_Fig2.tiff",
+       family="Helvetica",
+       units = "mm", dpi = 600,  width = 174,
+       height = 40)
+
+p3 
+
+ggsave(filename = "II_Fig3.tiff",
+       family="Helvetica",
+       units = "mm", dpi = 600,  width = 174,
+       height = 46)
+```
+
 ## 2. Страны и динамика их цитируемости 
 
 
@@ -221,7 +395,6 @@ ggplotly(p3)
 ##### Table 1: Страны и динамика их цитируемости 
 
 ```{r}
-
 # все три периода в большой таблице
 data %>% distinct(UT, country, .keep_all = TRUE) %>% 
   mutate(year_group2 = case_when(year_group == "1990-2000" ~ "I",
@@ -403,6 +576,147 @@ p2 <- df %>% ggplot(aes(x=year, count)) +
 ggplotly(p2)
 ```
 
+```{r fig4}
+#| eval=FALSE
+df <- data %>% distinct(UT, region, .keep_all = TRUE) %>% 
+  select(year, region, top_1, top_10, top_25) %>% 
+  filter(region != "Unknown") %>% 
+  mutate(region = factor(region, levels = regions)) %>% 
+  filter(region != "Other") %>% 
+  group_by(year, region) %>% mutate(count = length(top_1)) %>% ungroup() %>% 
+  group_by(year, region, count) %>% summarise(top_1 = sum(top_1),
+                                               top_10 = sum(top_10),
+                                               top_25 = sum(top_25)) %>% ungroup() %>% 
+
+  mutate(`1%` = 100 * top_1 / count,
+         `10%` = 100 * top_10 / count,
+         `25%` = 100 * top_25 / count) %>% 
+  pivot_longer(-c(year,region, count, top_1, top_10, top_25), 
+               names_to = "top_x", values_to = "value") 
+
+
+p1 <- df %>% ggplot(aes(x=year, value, color=top_x, group = top_x)) + 
+  geom_line(alpha = 0.2, size = 0.5) +
+  geom_point(alpha = 0.2, size = 0.5) +
+  geom_ma(ma_fun = SMA, n = 3, linetype = "solid", size = 1.1) +
+  # scale_x_continuous(
+  #       labels = as.character(seq(min(df$year), max(df$year), by = 1)),
+  #       breaks = seq(min(df$year), max(df$year), by = 1),
+  #       expand=c(0,0)
+  #   ) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  facet_wrap(~region, nrow = 1) +
+  guides(color = guide_legend(keyheight = 0.8, keywidth = 0.8, 
+                              override.aes = list(size = 1.5, alpha = 1))) + 
+  labs(color = "top:") +
+  scale_color_manual(values = c("#40126e", "#1F78B4", "#A6CEE3")) +
+  theme_test() +
+  theme(panel.spacing = unit(1, "lines")) +
+  theme(panel.grid = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_text(size = 8, angle = 0, vjust = 0.5),
+        axis.text.y = element_text(size = 8),
+        legend.position = "top",
+        legend.text = element_text(size = 8),
+        legend.title = element_text(size = 8)) +
+  theme(strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = 'black', size = 8))
+p1
+
+ggsave(filename = "Fig4.tiff",
+       family="Helvetica",
+       units = "mm", dpi = 600,  width = 174,
+       height = 54)
+```
+
+```{r fig4Q}
+#| eval=FALSE
+df <- data %>% distinct(UT, region, .keep_all = TRUE) %>% 
+  select(year, region, Q) %>% 
+  filter(region != "Unknown") %>% 
+  mutate(region = factor(region, levels = regions)) %>% 
+  filter(region != "Other") %>% 
+  mutate(Qv2 = case_when(Q == "Q1" ~ 1,
+                        TRUE ~ 0)) %>% 
+  group_by(year, region) %>% mutate(count = length(Qv2)) %>% ungroup() %>% 
+  group_by(year, region, count) %>% summarise(Qv2 = sum(Qv2)) %>% ungroup() %>% 
+
+  mutate(`Q1%` = 100 * Qv2 / count) 
+
+
+
+df %>% ggplot(aes(x=year, `Q1%`)) + 
+  geom_line(alpha = 0.7, size = 0.5, color = "#40126e") +
+  geom_point(alpha = 0.7, size = 0.5, color = "#40126e") +
+  # geom_ma(ma_fun = SMA, n = 3, linetype = "solid", size = 1.1) +
+  # scale_x_continuous(
+  #       labels = as.character(seq(min(df$year), max(df$year), by = 1)),
+  #       breaks = seq(min(df$year), max(df$year), by = 1),
+  #       expand=c(0,0)
+  #   ) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  facet_wrap(~region, nrow = 1) +
+  guides(color = guide_legend(keyheight = 0.8, keywidth = 0.8, 
+                              override.aes = list(size = 1.5, alpha = 1))) + 
+  theme_test() +
+  theme(panel.spacing = unit(1, "lines")) +
+  theme(panel.grid = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_text(size = 8, angle = 0, vjust = 0.5),
+        axis.text.y = element_text(size = 8),
+        legend.position = "top",
+        legend.text = element_text(size = 8),
+        legend.title = element_text(size = 8)) +
+  theme(strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = 'black', size = 8))
+
+ggsave(filename = "Fig4_Q.tiff",
+       family="Helvetica",
+       units = "mm", dpi = 600,  width = 174,
+       height = 46)
+```
+
+```{r fig4Qv2}
+#| eval=FALSE
+df <- data %>% distinct(UT, region, .keep_all = TRUE) %>% 
+  select(year, region, Q) %>% 
+  filter(region != "Unknown") %>% 
+  mutate(region = factor(region, levels = regions)) %>% 
+  filter(region != "Other") %>% 
+  mutate(Qv2 = case_when(Q == "Q1" ~ 1,
+                        TRUE ~ 0)) %>% 
+  group_by(year, region) %>% mutate(count = length(Qv2)) %>% ungroup() %>% 
+  group_by(year, region, count) %>% summarise(Qv2 = sum(Qv2)) %>% ungroup() %>% 
+
+  mutate(`Q1%` = 100 * Qv2 / count) 
+
+
+
+df %>% ggplot(aes(x=year, `Q1%`, color = region)) + 
+  geom_line(alpha = 0.2, size = 0.5) +
+  geom_point(alpha = 0.2, size = 0.5) +
+  geom_ma(ma_fun = SMA, n = 3, linetype = "solid", size = 1.1) +
+  # scale_x_continuous(
+  #       labels = as.character(seq(min(df$year), max(df$year), by = 1)),
+  #       breaks = seq(min(df$year), max(df$year), by = 1),
+  #       expand=c(0,0)
+  #   ) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  guides(color = guide_legend(keyheight = 0.8, keywidth = 0.8, 
+                              override.aes = list(size = 1.5, alpha = 1))) + 
+  theme_test() +
+  theme(panel.spacing = unit(1, "lines")) +
+  theme(panel.grid = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_text(size = 8, angle = 0, vjust = 0.5),
+        axis.text.y = element_text(size = 8),
+        legend.position = "top",
+        legend.text = element_text(size = 8),
+        legend.title = element_text(size = 8)) +
+  theme(strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = 'black', size = 8))
+```
+
 ## 4. Страны: динамика вхожденя в топ 
 
 
@@ -413,7 +727,7 @@ ggplotly(p2)
 
 
 ::: callout-tip
-**Важно:** если у статьи два автора из россии и один с германии. Мы прибавляем +1 статью для россии (НЕ +2!) и +1 германии.
+**Важно:** если у статьи два автора из россии и один из германии. Мы прибавляем +1 статью для россии (НЕ +2!) и +1 германии.
 ::: 
 
 Таблица с основными странами, разделение на 3 периода и следующие показатели в каждом периоде показать: кол-во публикаций, кол-во статей в топе 1, 10 и 25 (в скобках доли статей в топе).  
@@ -561,7 +875,6 @@ datatable(rownames = FALSE,
 ##### Графики
 
 ```{r}
-
 ## создание переменных топ-универов
 
 df1 <- data %>% # distinct(UT, .keep_all = TRUE) %>% 
@@ -642,7 +955,6 @@ p1 + p2 + plot_layout(guides = "collect") &
 ##### Таблица с институциями (TC)
 
 ```{r}
-
 data %>% # distinct(UT, .keep_all = TRUE) %>%
   select(year, organisation_full, TC) %>%
   filter(!is.na(organisation_full)) %>%
@@ -672,7 +984,6 @@ data %>% # distinct(UT, .keep_all = TRUE) %>%
 ##### Таблица с институциями (mncs)
 
 ```{r}
-
 data %>% # distinct(UT, .keep_all = TRUE) %>%
   select(year, organisation_full, mncs) %>%
   filter(!is.na(organisation_full)) %>%
@@ -750,6 +1061,162 @@ data %>% distinct(UT, region, .keep_all = TRUE) %>%
 
 ```
 
+
+```{r fig7}
+#| eval=FALSE
+data %>% distinct(UT, region, .keep_all = TRUE) %>% 
+  filter(region != "Unknown") %>% 
+  # separate_rows(field, sep=";") %>% 
+  filter(top_10 == 1) %>% 
+  group_by(year, region) %>% count() %>% ungroup() %>% 
+  group_by(year) %>% mutate(sh = 100* n / sum(n)) %>% 
+  mutate(region = factor(region, levels = regions)) %>% 
+  ggplot(aes(year, sh, color = region)) +
+  geom_line(alpha = 0.2, size = 0.4) +
+  geom_point(alpha = 0.2, size = 0.4) +
+  geom_ma(ma_fun = SMA, n = 3, linetype = "solid") +
+  # scale_x_continuous(
+  #       labels = as.character(seq(min(df$year), max(df$year), by = 1)),
+  #       breaks = seq(min(df$year), max(df$year), by = 1),
+  #       expand=c(0,0)
+  #   ) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  # facet_wrap(~field, nrow = 1) +
+  labs(y = "top_10", color = "") +
+  guides(color = guide_legend(keyheight = 0.6, keywidth = 0.6)) + 
+  scale_color_manual(values = myColors_reg, limits = force) +
+  labs(fill = "") +
+  theme_test() +
+  theme(panel.grid = element_blank(),
+        axis.title.x = element_blank(),
+        axis.text.x = element_text(size = 8, angle = 0, vjust = 0.5),
+        axis.text.y = element_text(size = 8),
+        legend.justification = "top")
+
+ggsave(filename = "Fig7.tiff",
+       family="Helvetica",
+       units = "mm", dpi = 600,  width = 174,
+       height = 86)
+
+```
+
+```{r fig78}
+#| eval=FALSE
+p1 <- data %>% distinct(UT, region, .keep_all = TRUE) %>% 
+  filter(region != "Unknown") %>% 
+  # separate_rows(field, sep=";") %>% 
+  filter(top_10 == 1) %>% 
+  group_by(year, region) %>% count() %>% ungroup() %>% 
+  group_by(year) %>% mutate(`top 10%` = 100 * n / sum(n)) %>% 
+  mutate(region = factor(region, levels = regions)) %>% select(-n)
+p2 <- data %>%  
+  distinct(UT, region, .keep_all = TRUE) %>% 
+  filter(region != "Unknown") %>% 
+  filter(Q == "Q1") %>% filter(year >= 2000) %>% 
+  group_by(year, region) %>% count() %>% ungroup() %>% 
+  group_by(year) %>% mutate(Q1 = 100 * n / sum(n))  %>% select(-n)
+p <- left_join(p1, p2, by = c("year", "region"))  
+
+p <- p %>% pivot_longer(-c(year, region))
+p <- p %>% filter(!is.na(value)) %>% mutate()
+
+p %>%  mutate(region = factor(region, levels = regions),
+              name = factor(name, levels = c("top 10%", "Q1"))) %>% 
+  ggplot(aes(year, value, color = region)) +
+  geom_line(size = 0.5) +
+  geom_point(size = 0.7) +
+  #geom_ma(ma_fun = SMA, n = 3, linetype = "solid") +
+  # scale_x_continuous(
+  #       labels = as.character(seq(min(df$year), max(df$year), by = 1)),
+  #       breaks = seq(min(df$year), max(df$year), by = 1),
+  #       expand=c(0,0)
+  #   ) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  # facet_wrap(~field, nrow = 1) +
+  labs(color = "") +
+  guides(color = guide_legend(keyheight = 0.8, keywidth = 0.8)) + 
+  facet_grid(~ name, scales = "free_x") +
+  scale_color_manual(values = myColors_reg, limits = force) +
+  theme_test() +
+  theme(panel.grid = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_text(size = 8, angle = 0, vjust = 0.5),
+        axis.text.y = element_text(size = 8),
+        legend.justification = "top")+ 
+  theme(strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = 'black',size = 8))
+
+ggsave(filename = "Fig78.tiff",
+       family="Helvetica",
+       units = "mm", dpi = 600,  width = 174,
+       height = 86)
+
+ggsave(filename = "Fig78_v1.tiff",
+       family="Helvetica",
+       units = "mm", dpi = 600,  width = 174,
+       height = 76)
+```
+
+
+```{r fig78_v2}
+#| eval=FALSE
+p1 <- data %>% distinct(UT, region, .keep_all = TRUE) %>% 
+  filter(region != "Unknown") %>% 
+  # separate_rows(field, sep=";") %>% 
+  filter(top_10 == 1) %>% 
+  group_by(year, region) %>% count() %>% ungroup() %>% 
+  group_by(year) %>% mutate(`top 10%` = 100 * n / sum(n)) %>% 
+  mutate(region = factor(region, levels = regions)) %>% select(-n)
+p2 <- data %>%  
+  distinct(UT, region, .keep_all = TRUE) %>% 
+  filter(region != "Unknown") %>% 
+  filter(Q == "Q1") %>% filter(year >= 2000) %>% 
+  group_by(year, region) %>% count() %>% ungroup() %>% 
+  group_by(year) %>% mutate(Q1 = 100 * n / sum(n))  %>% select(-n)
+p <- left_join(p1, p2, by = c("year", "region"))  
+
+p <- p %>% pivot_longer(-c(year, region))
+p <- p %>% filter(!is.na(value))
+
+p %>%  mutate(region = factor(region, levels = regions),
+              name = factor(name, levels = c("top 10%", "Q1"))) %>% 
+  ggplot(aes(year, value, color = region)) +
+  geom_line(#alpha = 0.2, 
+            size = 0.4) +
+  geom_point(#alpha = 0.2, 
+             size = 0.4) +
+  #geom_ma(ma_fun = SMA, n = 3, linetype = "solid") +
+  # scale_x_continuous(
+  #       labels = as.character(seq(min(df$year), max(df$year), by = 1)),
+  #       breaks = seq(min(df$year), max(df$year), by = 1),
+  #       expand=c(0,0)
+  #   ) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  # facet_wrap(~field, nrow = 1) +
+  labs(color = "") +
+  guides(color = guide_legend(keyheight = 0.8, keywidth = 0.8)) + 
+  scale_color_manual(values = myColors_reg, limits = force) +
+  facet_grid(~ name) +
+  theme_test() +
+  theme(panel.grid = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_text(size = 8, angle = 0, vjust = 0.5),
+        axis.text.y = element_text(size = 8),
+        legend.justification = "top")+ 
+  theme(strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = 'black',size = 8))
+
+ggsave(filename = "Fig78_v2.tiff",
+       family="Helvetica",
+       units = "mm", dpi = 600,  width = 174,
+       height = 86)
+
+ggsave(filename = "Fig78_v3.tiff",
+       family="Helvetica",
+       units = "mm", dpi = 600,  width = 174,
+       height = 72)
+```
+
 ##### Топ 25%
 
 ```{r}
@@ -812,23 +1279,150 @@ data %>%
   # scale_x_continuous(
   #       labels = as.character(seq(min(df$year), max(df$year), by = 1)),
   #       breaks = seq(min(df$year), max(df$year), by = 1),
-  #       expand=c(0,0)
+  #       expand = c(0,0)
   #   ) +
   scale_y_continuous(labels = function(x) paste0(x, "%")) +
   labs(title = "Fig 8: Доли регионов в Q1",
-      subtitle = "светалая линия - реальные значения; темная линия - скользящее среднее (шаг = 3 года)") +
+       subtitle = "светалая линия - реальные значения; темная линия - скользящее среднее (шаг = 3 года)") +
   theme_bw() +
   scale_color_brewer(palette = "Paired") +
-  # theme(legend.position = "bottom",
-  #       legend.justification ='left') + 
   theme(panel.grid = element_blank(),
-        panel.grid.major.y = element_line(size = 0.1, color = "grey70", linetype = "solid")) +
-  theme(strip.background = element_rect(fill = NA),
-        strip.text = element_text(colour = 'black',size = 7)) +
-  theme(axis.title = element_blank(),
-        legend.title= element_blank()) +
-  theme(axis.text.x = element_text(size = 7),
+        panel.grid.major.y = element_line(size = 0.1, color = "grey70", linetype = "solid"),
+        strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = 'black',size = 7),
+        axis.title = element_blank(),
+        legend.title= element_blank(),
+        axis.text.x = element_text(size = 7),
         axis.text.y = element_text(size = 8))   
+```
+
+```{r fig8}
+data %>%  
+  distinct(UT, region, .keep_all = TRUE) %>% 
+  filter(region != "Unknown") %>% 
+  filter(Q == "Q1") %>% filter(year >= 2000) %>% 
+  group_by(year, region) %>% count() %>% ungroup() %>% 
+  group_by(year) %>% mutate(sh = 100 * n / sum(n)) %>% 
+  mutate(region = factor(region, levels = regions)) %>% 
+  ggplot(aes(year, sh, color = region)) +
+  geom_line(alpha = 0.2, size = 0.4) +
+  geom_point(alpha = 0.2, size = 0.4) +
+  geom_ma(ma_fun = SMA, n = 3, linetype = "solid") +
+  # scale_x_continuous(
+  #       labels = as.character(seq(min(df$year), max(df$year), by = 1)),
+  #       breaks = seq(min(df$year), max(df$year), by = 1),
+  #       expand=c(0,0)
+  #   ) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  # facet_wrap(~field, nrow = 1) +
+  labs(y = "Q1", color = "") +
+  guides(color = guide_legend(keyheight = 0.6, keywidth = 0.6)) + 
+  labs(fill = "") +
+  theme_test() +
+  theme(panel.grid = element_blank(),
+        axis.title.x = element_blank(),
+        axis.text.x = element_text(size = 8, angle = 0, vjust = 0.5),
+        axis.text.y = element_text(size = 8),
+        legend.justification = "top")
+
+ggsave(filename = "Fig8.tiff",
+       family="Helvetica",
+       units = "mm", dpi = 600,  width = 174,
+       height = 86)
+```
 
 
+
+## 8. Доля региона в топ10 vs Доля региона во всех публикациях
+
+```{r}
+df1 <- data %>% distinct(UT, region, .keep_all = TRUE) %>%
+  filter(region != "Unknown") %>%
+  filter(top_10 == 1) %>% 
+  group_by(year, region) %>% count() %>% rename(top_10 = n)
+
+df2 <- data %>% distinct(UT, region, .keep_all = TRUE) %>% 
+  filter(region != "Unknown") %>% 
+  group_by(year, region) %>% count() %>% rename(tot_pub = n)
+
+
+df <- df2 %>% left_join(df1, by = c("year", "region")) %>%
+  filter(year >= 2000) %>% 
+  mutate(top_10 = case_when(is.na(top_10) ~ as.numeric(0),
+                            TRUE ~ as.numeric(top_10))) %>% 
+  group_by(year) %>% mutate(region = region,
+                               top_10_sh = 100 * top_10 / sum(top_10),
+                               tot_pub_sh = 100 * tot_pub / sum(tot_pub)) %>% 
+  ungroup() %>% 
+  mutate(sh = 100 * top_10 / tot_pub)
+
+p2 <- df %>% select(year, region, top_10_sh, tot_pub_sh) %>% 
+  pivot_longer(-c(year,region)) %>% 
+  ggplot(aes(x = year, value, color = name)) + 
+  geom_line(size = 0.6) +
+  geom_point(size = 1.1) +
+  # scale_y_continuous(labels = function(x) paste0(x, "%"),
+  #                    breaks = c(0, 15, 30, 45, 60)) +
+  labs(title = "Fig 9: Доля региона в Топ10 vs Доля региона во всех публикациях") +
+  theme_bw() +
+  facet_wrap(~region, ncol = 5) +
+  scale_color_brewer(palette = "Paired") +
+  # guides(color = guide_legend(override.aes = list(size = 5))) + 
+  theme(panel.grid.major.x = element_line(size = 0.1, color = "grey90", linetype = "solid"),
+        panel.grid.major.y = element_line(size = 0.1, color = "grey90", linetype = "solid"),
+        strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = 'black', size = 8),
+        axis.title = element_blank(),
+        axis.text.x = element_text(size = 7, angle = 90, vjust = 0.5),
+        axis.text.y = element_text(size = 7, angle = 90, vjust = 0.5),
+        legend.position = "top",
+        legend.title = element_blank()) 
+
+ggplotly(p2) %>% layout(legend = list(orientation = "h",   
+                                      xanchor = "center",  
+                                      x = 0.5,
+                                      y = -0.25))  
+```
+
+## 9. Для pdf-ки
+
+::: callout-tip
+**Важно:** если у статьи два автора из россии и один из германии. Мы прибавляем +1 статью для россии (НЕ +2!) и +1 германии.
+::: 
+
+```{r}
+
+df <- data %>% distinct(UT, country, .keep_all = TRUE) %>% 
+  mutate(country = case_when(is.na(country) ~ "Unknown",
+                             TRUE ~ country)) %>% 
+  group_by(country) %>% summarise(n_tot_all = length(organisation_full)) 
+
+data %>% distinct(UT, country, .keep_all = TRUE) %>% 
+
+  mutate(country = case_when(is.na(country) ~ "Unknown",
+                             TRUE ~ country)) %>% 
+
+  group_by(country) %>% summarise(n = length(organisation_full),
+                                              top_1 = sum(top_1),
+                                              top_10 = sum(top_10),
+                                              top_25 = sum(top_25)) %>% ungroup() %>% 
+
+  mutate(top_1_perc = 100 * top_1 / n,
+         top_10_perc = 100 * top_10 / n,
+         top_25_perc = 100 * top_25 / n) %>% 
+  
+  ungroup() %>% left_join(df) %>% 
+  mutate(n_tot_all_time = n_tot_all, .before = n) %>% 
+  select(-n_tot_all) %>% 
+  arrange(desc(n_tot_all_time)) %>%
+  
+datatable(rownames = FALSE, 
+          options = list(pageLength = 10,
+                         headerCallback = DT::JS("function(thead) {",
+                                                 "  $(thead).css('font-size',
+                                                 '0.6em');",
+                                                 "}"
+                                                 ))) %>% 
+  DT::formatStyle(columns = c(1:9), fontSize = '80%') %>% 
+  formatRound(columns=c(7:9), digits=1)
 ```

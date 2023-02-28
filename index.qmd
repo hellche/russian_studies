@@ -8,6 +8,8 @@ knitr::opts_chunk$set(echo = FALSE,  warning = FALSE, message =  FALSE)
 ```
 
 ```{r packages}
+library(viridis)
+library(scales)
 library(ggrepel)
 library(tidyverse)
 library(expss)
@@ -82,24 +84,75 @@ all_test <- function(x, ...) {
 data <- read_csv("data/data_clean.csv")
 ```
 
-```{r colors}
-myColors <- brewer.pal(12, "Paired")
-myColors <- replace(myColors, myColors == "#FFFF99", "#ffdb4d")
-myColors <- replace(myColors, myColors == "#FDBF6F", "#fb9004")
-myColors <- replace(myColors, myColors == "#6A3D9A", "#a6a6a6")
-myColors <- replace(myColors, myColors == "#fb9004", "#9358a7")
+```{r colors_factors}
+# myColors <- brewer.pal(12, "Paired")
+# myColors <- replace(myColors, myColors == "#FFFF99", "#ffdb4d")
+# myColors <- replace(myColors, myColors == "#FDBF6F", "#fb9004")
+# myColors <- replace(myColors, myColors == "#6A3D9A", "#a6a6a6")
+# myColors <- replace(myColors, myColors == "#fb9004", "#9358a7")
+# 
+# 
+# myColors <- replace(myColors, myColors == "#FF7F00", "red")
+# myColors <- replace(myColors, myColors == "#CAB2D6", "#FF7F00")
+# myColors <- replace(myColors, myColors == "red", "#CAB2D6")
+# 
+# myColors <- c(myColors, "#cc0066")
+# # myColors <- c("#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C",
+# #               "#FB9A99", "#E31A1C", "#cc0066","#9358a7",
+# #               "#CAB2D6", "#FF7F00", "#ffdb4d", 
+# #               "#B15928", "#a6a6a6")
+# 
+# areas <- data %>%
+#   separate_rows(research_areas, sep = ";") %>%
+#   mutate(research_areas = str_trim(research_areas, "both")) %>%
+#   group_by(research_areas) %>%
+#   mutate(research_areas = case_when(n() < 700 ~ "Other",
+#                                     TRUE ~ research_areas)) %>%
+#   count() %>% pull(research_areas)
+# 
+# my_color <- setNames(myColors, areas)
+# 
+# areas <- data %>%
+#   separate_rows(research_areas, sep = ";") %>%
+#   mutate(research_areas = str_trim(research_areas, "both")) %>%
+#   group_by(research_areas) %>%
+#   mutate(research_areas = case_when(n() < 700 ~ "Other",
+#                                     TRUE ~ research_areas)) %>%
+#   count() %>% arrange() %>% pull(research_areas)
+# 
+# areas <- areas[-10]
+# areas <- c(areas, "Other")
 
-myColors <- c(myColors, "#cc0066")
+myColors <- c("#A6CEE3", "#1F78B4", "#B2DF8A", 
+"#33A02C", "#CAB2D6", "#6A3D9A",
+"#FB9A99", "#E31A1C", "#FDBF6F", "#FF7F00", "#FFFF99", "#B15928",
+"#a6a6a6")
 
-areas <- data %>%
-  separate_rows(research_areas, sep = ";") %>%
-  mutate(research_areas = str_trim(research_areas, "both")) %>%
-  group_by(research_areas) %>%
-  mutate(research_areas = case_when(n() < 700 ~ "Other",
-                                    TRUE ~ research_areas)) %>%
-  count() %>% pull(research_areas)
-
+areas <- c("Area Studies",  
+"Business, Economics & Management", 
+"Education & Information Science",  
+"Law",
+"Political Science", 
+"Sociology & Anthropology", 
+"Art",   
+"History",     
+"Language & Linguistics",   
+"Literature",  
+"Philosophy & Religion",   
+"Multidisciplinary",    
+"Other")
 my_color <- setNames(myColors, areas)
+
+
+# regions <- data %>% 
+#   group_by(region) %>% count() %>% arrange() %>% pull(region)
+regions <- c("Northern America","Europe", "Russia", "Asia", "Other")             
+
+# myColors_reg <- myColors[1:4] 
+myColors_reg <- c( "#9358a7", "#1F78B4", "#33A02C", "#FF7F00", "#ffdb4d")
+
+# show_col(myColors_reg)
+myColors_reg <- setNames(myColors_reg, regions)
 ```
 
 ::: callout-tip
@@ -178,6 +231,175 @@ ggplot(df, aes(x = year)) +
         axis.text.y = element_text(size = 8))
 ```
 
+```{r fig1}
+#| eval = FALSE 
+df <- data %>% distinct(UT, .keep_all = TRUE) %>% 
+  
+  # split fields
+  separate_rows(field, sep = ";") %>% 
+  
+  select(year, field) %>% 
+  group_by(year, field) %>% count() %>% ungroup() %>% 
+  group_by(field) %>% arrange(field, year) %>% 
+  mutate(change_to_1990_2 = 100 * n / n[year == 1990],
+         change_to_1990 = change_to_1990_2 - 100) %>% 
+  mutate(color = case_when(change_to_1990 >=0 ~ "blue",
+                           TRUE ~ "red"))
+
+p1 <- ggplot(df, aes(x = year)) + 
+  geom_col(aes(y = n), fill = "grey", alpha = 0.7 , size = 0.1, colour = "black") +
+  # scale_x_continuous(
+  #       labels = as.character(seq(min(df$year), max(df$year), by = 1)), 
+  #       breaks = seq(min(df$year), max(df$year), by = 1), 
+  #       expand = c(0,0)) +
+  facet_wrap(~field, nrow = 1) +
+  labs(y = "count") +
+  theme_test() +
+  theme(panel.grid = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_text(size = 8),
+        strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = 'black', size = 8),
+        axis.text.x = element_text(size = 8, angle = 0, vjust = 0.5),
+        axis.text.y = element_text(size = 8),
+        legend.position = "none")
+
+p2 <- ggplot(df, aes(x = year)) + 
+  geom_hline(yintercept = 0, linetype = "solid",  color = "black") +
+  geom_col(aes(y = change_to_1990, fill = color), alpha = 0.7 , size = 0.1, colour = "black")+
+  # ggalt::geom_xspline(aes(y = change_to_1990), 
+  #                     size = 0.7, color = "blue", spline_shape = -0.4) +
+  
+  # scale_x_continuous(
+  #       labels = as.character(seq(min(df$year), max(df$year), by = 1)), 
+  #       breaks = seq(min(df$year), max(df$year), by = 1), 
+  #       expand = c(0,0)) +
+  scale_y_continuous(labels = function(x) paste0(x, "%"), breaks = c(-25,0,25,50,75)) +
+  scale_fill_manual(values = c("#B2DF8A", "#FB9A99")) +
+  facet_wrap(~field, nrow = 1) +
+  labs(y = "change to 1990") +
+  guides(fill = guide_legend(keyheight = 0.8, keywidth = 0.8)) + 
+  labs(fill = "") +
+  theme_test() +
+  theme(panel.grid = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_text(size = 8),
+        axis.text.x = element_text(size = 8, angle = 0, vjust = 0.5),
+        axis.text.y = element_text(size = 8),
+        strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = 'black', size = 8),
+        legend.position = "none")
+p1/p2
+
+ggsave(filename = "Fig1.tiff",
+       family="Helvetica",
+       units = "mm", dpi = 600,  width = 174,
+       height = 100)
+```
+
+```{r fig1v2}
+df <- data %>% distinct(UT, .keep_all = TRUE) %>% 
+  
+  # split fields
+  separate_rows(field, sep = ";") %>% 
+  
+  select(year, field) %>% 
+  group_by(year, field) %>% count() %>% ungroup() %>% 
+  group_by(field) %>% arrange(field, year) %>% 
+  mutate(change_to_1990_2 = 100 * n / n[year == 1990],
+         change_to_1990 = change_to_1990_2 - 100) %>% 
+  mutate(color = case_when(change_to_1990 >=0 ~ "blue",
+                           TRUE ~ "red"))
+
+p1 <- ggplot(df, aes(x = year)) + 
+  geom_col(aes(y = n), fill = "grey", alpha = 0.7 , size = 0.1, colour = "black") +
+  # scale_x_continuous(
+  #       labels = as.character(seq(min(df$year), max(df$year), by = 1)), 
+  #       breaks = seq(min(df$year), max(df$year), by = 1), 
+  #       expand = c(0,0)) +
+  facet_wrap(~field, nrow = 1) +
+  labs(y = "n") +
+  theme_test() +
+  theme(panel.grid = element_blank(),
+        axis.title.x = element_blank(),
+        strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = 'black', size = 8),
+        axis.text.x = element_text(size = 8, angle = 0, vjust = 0.5),
+        axis.text.y = element_text(size = 8),
+        legend.position = "none")
+
+p2 <- ggplot(df, aes(x = year)) + 
+  geom_hline(yintercept = 0, linetype = "dashed",  color = "black") +
+  # geom_col(aes(y = change_to_1990, fill = color), alpha = 0.7 , size = 0.1, colour = "black")+
+  ggalt::geom_xspline(aes(y = change_to_1990),
+                      size = 0.7, color = "blue", spline_shape = -0.4) +
+  
+  # scale_x_continuous(
+  #       labels = as.character(seq(min(df$year), max(df$year), by = 1)), 
+  #       breaks = seq(min(df$year), max(df$year), by = 1), 
+  #       expand = c(0,0)) +
+  scale_y_continuous(labels = function(x) paste0(x, "%"), breaks = c(-25,0,25,50,75)) +
+  # scale_fill_manual(values = c("#B2DF8A", "#FB9A99")) +
+  facet_wrap(~field, nrow = 1) +
+  labs(y = "change (1990 = 100)") +
+  guides(fill = guide_legend(keyheight = 0.8, keywidth = 0.8)) + 
+  labs(fill = "") +
+  theme_test() +
+  theme(panel.grid = element_blank(),
+        axis.title.x = element_blank(),
+        axis.text.x = element_text(size = 8, angle = 0, vjust = 0.5),
+        axis.text.y = element_text(size = 8),
+        strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = 'black', size = 8),
+        legend.position = "none")
+p1/p2
+
+ggsave(filename = "Fig1_v2.pdf",
+       family="Helvetica",
+       units = "mm", dpi = 600,  width = 174,
+       height = 86)
+```
+
+```{r fig1v3}
+df <- data %>% distinct(UT, .keep_all = TRUE) %>% 
+  
+  # split fields
+  separate_rows(field, sep = ";") %>% 
+  
+  select(year, field) %>% 
+  group_by(year, field) %>% count() %>% ungroup() %>% 
+  group_by(field) %>% arrange(field, year) %>% 
+  mutate(change_to_1990_2 = 100 * n / n[year == 1990],
+         change_to_1990 = change_to_1990_2 - 100) %>% 
+  mutate(color = case_when(change_to_1990 >=0 ~ "blue",
+                           TRUE ~ "red"))
+
+p1 <- ggplot(df, aes(x = year)) + 
+  geom_col(aes(y = n), fill = "grey", alpha = 0.7 , size = 0.1, colour = "black") +
+  # scale_x_continuous(
+  #       labels = as.character(seq(min(df$year), max(df$year), by = 1)), 
+  #       breaks = seq(min(df$year), max(df$year), by = 1), 
+  #       expand = c(0,0)) +
+  facet_wrap(~field, nrow = 1) +
+  labs(y = "count") +
+  theme_test() +
+  theme(panel.grid = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_text(size = 8),
+        axis.text.x = element_text(size = 8, angle = 0, vjust = 0.5),
+        axis.text.y = element_text(size = 8),
+        strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = 'black', size = 8),
+        legend.position = "none")
+
+p1
+
+ggsave(filename = "Fig1_v3.tiff",
+       family="Helvetica",
+       units = "mm", dpi = 600,  width = 174,
+       height = 86)
+```
+
 ## 2. Динамика по областям
 
 ### Все области
@@ -204,12 +426,13 @@ p <- data %>% distinct(UT, .keep_all = TRUE) %>%
   mutate(frac = 1/ length(research_areas)) %>% ungroup() %>% 
   
   group_by(research_areas) %>%
-  mutate(research_areas = case_when(sum(frac) < 400 ~ "Other (< 400 papers)",
+  mutate(research_areas = case_when(sum(frac) < 400 ~ "Other",
                                     TRUE ~ research_areas)) %>% ungroup() %>%
   group_by(year, research_areas) %>% 
   summarise(n = sum(frac)) %>%  # ungroup() %>% 
   group_by(year) %>% 
   mutate(perc = round(100 * n / sum(n), 2)) %>% ungroup() %>% 
+  mutate(research_areas = factor(research_areas, levels = areas)) %>% 
 
   ggplot(aes(x = year, y = perc, fill = research_areas)) + 
   geom_area(alpha = 0.8 , size = 0.5, colour = "black") +
@@ -230,7 +453,6 @@ p
 
 ```{r}
 #| fig.dim = c(8.8, 7)
-
 p <- data %>% distinct(UT, .keep_all = TRUE) %>% 
   select(UT, year, research_areas) %>% 
   
@@ -261,6 +483,46 @@ p <- data %>% distinct(UT, .keep_all = TRUE) %>%
 ggplotly(p)
 ```
 :::
+
+```{r fig2}
+#| eval=FALSE
+data %>% distinct(UT, .keep_all = TRUE) %>% 
+  select(UT, year, research_areas) %>% 
+  
+  # разворачиваем research_areas
+  separate_rows(research_areas, sep=";") %>% 
+  mutate(research_areas = str_trim(research_areas, "both")) %>% 
+  mutate(frac = 1) %>% group_by(UT) %>% 
+  mutate(frac = 1/ length(research_areas)) %>% ungroup() %>% 
+  
+  group_by(research_areas) %>%
+  mutate(research_areas = case_when(sum(frac) < 400 ~ "Other",
+                                    TRUE ~ research_areas)) %>% ungroup() %>%
+  group_by(year, research_areas) %>% 
+  summarise(n = sum(frac)) %>%  ungroup() %>% 
+  group_by(year) %>% 
+  mutate(perc = round(100 * n / sum(n), 2)) %>% ungroup() %>% 
+  mutate(research_areas = factor(research_areas, levels = areas)) %>% 
+  ggplot(aes(x = year, y = perc, fill = research_areas)) + 
+  # geom_col(alpha = 0.8 , size = 0.2, colour = "white") +
+  geom_col(alpha = 0.7 , size = 0.1, colour = "black") +
+  # geom_col(alpha = 0.8 , size = 0.2) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  guides(fill = guide_legend(keyheight = 0.8, keywidth = 0.8)) + 
+  labs(fill = "") +
+  scale_fill_manual(values = my_color, limits = force) +
+  theme_test() +
+  theme(panel.grid = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_text(size = 8, angle = 0, vjust = 0.5),
+        axis.text.y = element_text(size = 8),
+        legend.justification = "top")
+
+ggsave(filename = "Fig2.tiff",
+       family="Helvetica",
+       units = "mm", dpi = 600,  width = 174,
+       height = 86)
+```
 
 ```{r drop}
 #| eval=FALSE
@@ -615,6 +877,62 @@ subplot(style(ggplotly(p1), showlegend = F),
    layout(annotations = annotations)
 ```
 
+```{r fig5ab}
+df1 <- data %>% distinct(UT, region, .keep_all = TRUE) %>% 
+  filter(region != "Unknown")  %>% 
+  group_by(year, region) %>% count() %>% ungroup() %>% 
+  group_by(year) %>% 
+  mutate(perc = round(100 * n / sum(n), 2)) %>% 
+  mutate(region = factor(region, levels = regions))
+
+
+df2 <- data %>% distinct(UT, region, .keep_all = TRUE) %>% 
+  filter(region != "Unknown")  %>% 
+  group_by(year, region) %>% count() %>% ungroup() %>% 
+  group_by(year) %>% 
+  mutate(perc = n / sum(n)) %>% 
+  mutate(region = factor(region, levels = regions))
+
+
+p1 <- ggplot(df1, aes(x = year, y = n, color = region)) + 
+  # ggalt::geom_xspline(alpha = 0.8, size = 1, spline_shape = -0.6) +
+  geom_line(size = 0.5) +
+  geom_point(size = 0.7) +
+  labs(y = "count", color = "") +
+  guides(color = guide_legend(keyheight = 0.8, keywidth = 0.8))  +
+  scale_color_manual(values = myColors_reg, limits = force) +
+  theme_test() +
+  theme(panel.grid = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_text(size = 8),
+        axis.text.x = element_text(size = 8, angle = 0, vjust = 0.5),
+        axis.text.y = element_text(size = 8),
+        legend.position = "none")
+
+p2 <- df2 %>% mutate(perc = perc * 100) %>% 
+  ggplot(aes(x = year, perc, color = region, group = region)) + 
+  geom_line(size = 0.5) +
+  geom_point(size = 0.7) +
+  scale_y_continuous(labels = function(x) paste0(x, "%"),
+                     breaks = c(0, 15, 30, 45, 60)) +
+  labs(y = "share of total", color = "") +
+  guides(color = guide_legend(keyheight = 0.8, keywidth = 0.8))  +
+  scale_color_manual(values = myColors_reg, limits = force) +
+  theme_test() +
+  theme(panel.grid = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_text(size = 8),
+        axis.text.x = element_text(size = 8, angle = 0, vjust = 0.5),
+        axis.text.y = element_text(size = 8),
+        legend.justification = "top")
+
+p1 + p2
+ggsave(filename = "Fig5ab.tiff",
+       family="Helvetica",
+       units = "mm", dpi = 600,  width = 174,
+       height = 72)
+```
+
 ## 4. Специализация регионов
 
 ::: callout-tip
@@ -659,6 +977,51 @@ p <- ggplot(df, aes(x = region, y = perc, fill = research_areas)) +
         axis.title = element_blank()) 
 
 ggplotly(p)
+```
+
+```{r fig6}
+#| eval=FALSE
+df <- data %>% 
+  filter(region != "Unknown")  %>% 
+  select(UT, research_areas, region) %>% 
+  # разворачиваем research_areas
+  distinct(UT, region, .keep_all = TRUE) %>%  
+  
+  separate_rows(research_areas, sep=";") %>%
+  mutate(research_areas = str_trim(research_areas, "both")) %>%
+  
+  mutate(frac = 1) %>% group_by(UT, region) %>% 
+  mutate(frac = 1 / length(research_areas)) %>% ungroup() %>% 
+  
+  group_by(research_areas) %>% 
+  mutate(research_areas = case_when(sum(frac) < 400 ~ "Other",
+                                    TRUE ~ research_areas)) %>% ungroup() %>% 
+
+  group_by(research_areas, region) %>% summarise(n = sum(frac)) %>% ungroup() %>% 
+  group_by(region) %>% mutate(perc = round((100 * n / sum(n)), 2)) %>% 
+  mutate(research_areas = factor(research_areas, levels = areas)) %>% 
+  mutate(region = factor(region, levels = regions)) 
+
+ggplot(df, aes(x = region, y = perc, fill = research_areas)) + 
+  geom_col(alpha = 0.7 , size = 0.1, colour = "black", width = 0.5) +
+  # coord_flip() +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  scale_fill_manual(values = my_color, limits = force) +
+  guides(fill = guide_legend(keyheight = 0.8, keywidth = 0.8)) + 
+  labs(fill = "") +
+  theme_test() +
+  theme(panel.grid = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_text(size = 8),
+        axis.text.y = element_text(size = 8),
+        legend.justification = "top")
+
+
+ggsave(filename = "Fig6.tiff",
+       family="Helvetica",
+       units = "mm", dpi = 600,  width = 174,
+       height = 86)
 ```
 
 ::: callout-tip
@@ -891,6 +1254,118 @@ subplot(style(fig2, showlegend = F),
    layout(annotations = annotations)
 ```
 
+```{r fig8a}
+#| eval=FALSE
+plot_order <- data %>% distinct(UT, .keep_all = TRUE) %>%
+  filter(region != "Unknown")  %>% 
+  separate_rows(research_areas, sep=";") %>% 
+  mutate(research_areas = str_trim(research_areas, "both")) %>% 
+  
+  filter(!is.na(research_areas))  %>% 
+  filter(research_areas != "NA")  %>% 
+  
+  mutate(frac = 1) %>% group_by(UT, region) %>% 
+  mutate(frac = 1 / length(research_areas)) %>% ungroup() %>% 
+  group_by(research_areas) %>%
+  mutate(research_areas = case_when(sum(frac) < 400 ~ "Other",
+                                    TRUE ~ research_areas)) %>% ungroup() %>%
+  #filter(research_areas != "Other")  %>% 
+  
+  count(research_areas, region) %>%
+  group_by(research_areas) %>%
+  mutate(prop = prop.table(n)) %>%
+  filter(region == "Northern America") %>%
+  arrange(desc(prop))
+
+lvls <- as.character(plot_order$research_areas)
+
+df1 <- data %>% 
+  filter(region != "Unknown")  %>% 
+  distinct(UT, region, .keep_all = TRUE) %>%  
+  # разворачиваем research_areas
+  separate_rows(research_areas, sep=";") %>% 
+  mutate(research_areas = str_trim(research_areas, "both")) %>% 
+ 
+  filter(!is.na(research_areas))  %>% 
+  filter(research_areas != "NA")  %>% 
+  
+  mutate(frac = 1) %>% group_by(UT, region) %>% 
+  mutate(frac = 1 / length(research_areas)) %>% ungroup() %>% 
+  
+  group_by(research_areas) %>% 
+  mutate(research_areas = case_when(sum(frac) < 400 ~ "Other",
+                                    TRUE ~ research_areas)) %>% ungroup() %>% 
+  #filter(research_areas != "Other")  %>% 
+  group_by(research_areas, region) %>% summarise(n = sum(frac)) %>% ungroup() %>% 
+  group_by(research_areas) %>% 
+  mutate(perc = round(100 * n / sum(n), 2))  %>% 
+  mutate(research_areas = factor(research_areas, levels = lvls))
+
+df2 <- data %>% 
+  filter(region != "Unknown")  %>% 
+  distinct(UT, region, .keep_all = TRUE) %>%  
+  # разворачиваем research_areas
+  separate_rows(research_areas, sep=";") %>% 
+  mutate(research_areas = str_trim(research_areas, "both")) %>% 
+
+  filter(!is.na(research_areas))  %>% 
+  filter(research_areas != "NA")  %>% 
+  
+  mutate(frac = 1) %>% group_by(UT, region) %>% 
+  mutate(frac = 1 / length(research_areas)) %>% ungroup() %>% 
+  group_by(research_areas) %>% 
+  mutate(research_areas = case_when(sum(frac) < 400 ~ "Other",
+                                    TRUE ~ research_areas)) %>% ungroup() %>% 
+  # filter(research_areas != "Other")  %>% 
+  group_by(research_areas) %>% summarise(n = sum(frac)) %>% 
+  mutate(research_areas = factor(research_areas, levels = lvls))
+
+p1 <- ggplot(df1 %>% 
+                 mutate(region = factor(region, levels = regions)) , 
+             aes(x = research_areas, y = perc, 
+                 #fill = region
+                 fill = forcats::fct_rev(as.factor(region)))) + 
+  geom_col(alpha = 0.7 , size = 0.1, colour = "black") +
+  coord_flip() +
+  labs(y = "share") +
+  guides(fill = guide_legend(keyheight = 0.8, keywidth = 0.8, reverse=T)) + 
+  scale_fill_manual(values = myColors_reg, limits = force) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  theme_test() +
+  theme(panel.grid = element_blank(),
+        axis.title.y = element_blank(),
+        axis.title.x = element_text(size = 8),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.text.x = element_text(size = 8),
+        legend.title= element_blank(),
+        #legend.position = "top")
+        legend.justification = "top")
+       
+
+p2 <- ggplot(df2, aes(x = research_areas, y = n)) +
+  geom_col(alpha = 0.7 , size = 0.1, fill = "grey70", colour = "black") +
+  coord_flip() +
+  labs(y = "count") +
+  scale_y_continuous(breaks = c(0, 1500, 3000, 4500)) +
+  theme_test() +
+  theme(panel.grid = element_blank(),
+        axis.title.y = element_blank(),
+        axis.title.x = element_text(size = 8),
+        # axis.text.y = element_blank(),
+        #axis.ticks.y = element_blank(),
+        axis.text.x = element_text(size = 8))#, angle = 90, vjust = 0.5),
+        #axis.text.y = element_text(size = 8))
+
+p2 + p1
+
+ggsave(filename = "Fig8a_v2.tiff",
+       family="Helvetica",
+       units = "mm", dpi = 600,  width = 174,
+       height = 62)
+
+```
+
 ## 6. Страны и число организаций
 
 Примечание: Из 33898 строк у \~8100 нет институции и у \~4200 нет страны
@@ -927,7 +1402,6 @@ datatable(rownames = FALSE,
 ##### Table 2: Most contributing countries
 
 ```{r}
-
 data %>% #distinct(UT, .keep_all = TRUE) %>%
   mutate(country = case_when(is.na(country) ~ "Unknown",
                              TRUE ~ country)) %>% 
@@ -1031,3 +1505,4 @@ data %>% select(UT, organisation_full, year_group) %>% #distinct(UT, .keep_all =
   DT::formatStyle(columns = c(1:7), fontSize = '80%')
 ```
 :::
+

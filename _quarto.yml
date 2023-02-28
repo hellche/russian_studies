@@ -10,6 +10,7 @@ website:
       - href: index.qmd
         text: I. PRODUCTION OF PUBLICATIONS
       - about.qmd
+      - add_tab_fig.qmd
     right:
       - icon: github
         href: https://github.com/hellche/russian_studies

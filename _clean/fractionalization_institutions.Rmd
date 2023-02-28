@@ -54,14 +54,17 @@ SSCI/AHCI -- и число публикаций в каждой категори
 ```{r}
 data_website_original <- read_excel("data/data_website original.xlsx")
 
-data_website <- read_excel("data/data_website.xlsx") %>% select(id, Q) %>% 
+data_website <- read_excel("data/data_website.xlsx") 
+
+data_website <- data_website %>% select(id, Q) %>% 
   distinct(id, .keep_all = TRUE)
   # group_by(id) %>% 
   # summarise(count = length(Q),
   #           Q = paste(sort(unique(Q)), collapse = "; ")) %>%
   # arrange(desc(count))
 
-country_region <- read_csv("data/data_clean.csv") %>% select(country, region) %>%
+country_region <- read_csv("data/data_clean.csv") 
+country_region <- country_region %>% select(country, region) %>%
   distinct(country, region, .keep_all = TRUE) %>%
   filter(!is.na(country))
 
@@ -416,4 +419,562 @@ data <- data %>% left_join(df1)
 
 write_csv(data, "data_frac.csv")
 openxlsx::write.xlsx(data, "data_frac.xlsx")
+```
+
+
+# 1990-2000 Версия датасета с фракционализацией
+
+```{r}
+data_frac <- data_kat %>% filter(!is.na(organisation_full)) %>% 
+  filter(year_group == "1990-2000") %>% 
+  ## ФРАКЦИОНАЛИЗАЦИЯ
+  group_by(UT) %>% 
+  mutate(n_auth = length(organisation_full), .after = "organisation_full") %>% 
+  ungroup() %>% 
+  mutate(frac = 1 / n_auth, .after = "organisation_full")
+
+df1 <- data_frac %>% 
+  group_by(organisation_full) %>% 
+  summarise(total_pub = sum(frac),
+            country = paste(sort(unique(country)),collapse="; "),
+            region = paste(sort(unique(region)),collapse="; "))
+
+data <- df1
+
+df1 <- data_frac %>% 
+  group_by(organisation_full, Q) %>% 
+  summarise(count = sum(frac)) %>% 
+  pivot_wider(values_from = "count", names_from = "Q") %>% 
+  ungroup() %>% 
+  select(organisation_full, `Q1`, `Q2`, `Q3`, `Q4`, `NA`) 
+
+
+df3 <- df1
+
+data <- data %>% left_join(df3)
+
+df1 <- data_frac %>% select(UT, organisation_full, frac, research_areas) %>% 
+  mutate(id = row_number()) %>% 
+  separate_rows(research_areas, sep = ";") %>% 
+  mutate(research_areas = str_trim(research_areas, "both")) %>% 
+  group_by(id) %>% 
+  mutate(n_fields = length(organisation_full)) %>% ungroup() %>% select(-id) %>% 
+  mutate(frac_fields = 1 / n_fields) %>% 
+  # filter(UT == "WOS:000286815100004" | UT == "WOS:000356603200004") %>% 
+  group_by(UT, organisation_full, research_areas, frac) %>% 
+  summarise(count = sum(frac_fields)) %>% ungroup() %>% 
+  group_by(organisation_full, research_areas) %>% 
+  mutate(frac_frac = frac * count) %>% 
+  ungroup() %>% 
+  group_by(organisation_full, research_areas) %>% 
+  summarise(frac_frac_frac = sum(frac_frac)) %>% ungroup() %>% 
+  pivot_wider(values_from = "frac_frac_frac", names_from = "research_areas") 
+
+data <- data %>% left_join(df1)
+
+df1 <- data_frac %>% 
+  group_by(organisation_full, field) %>% 
+  summarise(count = sum(frac)) %>% 
+  pivot_wider(values_from = "count", names_from = "field") %>% 
+  ungroup() 
+
+data <- data %>% left_join(df1)
+
+# Фракционализация TC
+df1 <- data_frac %>% select(UT, organisation_full, frac, TC) %>% 
+  # filter(UT == "WOS:000286815100004" | UT == "WOS:000356603200004" | UT == "WOS:000085344600006") %>% 
+  mutate(TC_f = TC * frac) %>% 
+  # group_by(organisation_full) %>% 
+  # mutate(pp = length(unique(UT))) %>% ungroup() %>% 
+  group_by(organisation_full, UT) %>% 
+  summarise(TC_fsum = sum(TC_f, na.rm = TRUE)) %>% ungroup() %>% 
+  group_by(organisation_full) %>% 
+  summarise(TC_frac_mean = mean(TC_fsum, na.rm = TRUE))
+
+data <- data %>% left_join(df1)
+
+# Фракционализация mncs
+df1 <- data_frac %>% select(UT, organisation_full, frac, mncs) %>% 
+  # filter(UT == "WOS:000286815100004" | UT == "WOS:000356603200004" | UT == "WOS:000085344600006") %>% 
+  mutate(mncs_f = mncs * frac) %>% 
+  # group_by(organisation_full) %>% 
+  # mutate(pp = length(unique(UT))) %>% ungroup() %>% 
+  group_by(organisation_full, UT) %>% 
+  summarise(mncs_fsum = sum(mncs_f, na.rm = TRUE)) %>% ungroup() %>% 
+  group_by(organisation_full) %>% 
+  summarise(mncs_frac_mean = mean(mncs_fsum, na.rm = TRUE))
+
+data <- data %>% left_join(df1)
+
+## Фракционализация top_
+
+df1 <- data_frac %>% select(UT, organisation_full, frac, starts_with("top_")) %>% 
+  # filter(UT == "WOS:000286815100004" | UT == "WOS:000356603200004" | UT == "WOS:000085344600006") %>% 
+  mutate(top_1_fr = top_1 * frac,
+         top_10_fr = top_10 * frac,
+         top_25_fr = top_25 * frac,
+         top_50_fr = top_50 * frac) %>% 
+  group_by(organisation_full) %>% 
+  summarise(top_1_fr = sum(top_1_fr),
+            top_10_fr = sum(top_10_fr),
+            top_25_fr = sum(top_25_fr),
+            top_50_fr = sum(top_50_fr))
+
+data <- data %>% left_join(df1)
+
+df1 <- data_frac %>% 
+  group_by(organisation_full, collab_type) %>% 
+  summarise(count = sum(frac)) %>% 
+  pivot_wider(values_from = "count", names_from = "collab_type") %>% 
+  ungroup() 
+
+data <- data %>% left_join(df1)
+
+write_csv(data, "data_frac_1990_2000.csv")
+```
+
+
+# 2001-2010 Версия датасета с фракционализацией
+
+```{r}
+data_frac <- data_kat %>% filter(!is.na(organisation_full)) %>% 
+  filter(year_group == "2001-2010") %>% 
+  ## ФРАКЦИОНАЛИЗАЦИЯ
+  group_by(UT) %>% 
+  mutate(n_auth = length(organisation_full), .after = "organisation_full") %>% 
+  ungroup() %>% 
+  mutate(frac = 1 / n_auth, .after = "organisation_full")
+
+df1 <- data_frac %>% 
+  group_by(organisation_full) %>% 
+  summarise(total_pub = sum(frac),
+            country = paste(sort(unique(country)),collapse="; "),
+            region = paste(sort(unique(region)),collapse="; "))
+
+data <- df1
+
+df1 <- data_frac %>% 
+  group_by(organisation_full, Q) %>% 
+  summarise(count = sum(frac)) %>% 
+  pivot_wider(values_from = "count", names_from = "Q") %>% 
+  ungroup() %>% 
+  select(organisation_full, `Q1`, `Q2`, `Q3`, `Q4`, `NA`) 
+
+
+df3 <- df1
+
+data <- data %>% left_join(df3)
+
+df1 <- data_frac %>% select(UT, organisation_full, frac, research_areas) %>% 
+  mutate(id = row_number()) %>% 
+  separate_rows(research_areas, sep = ";") %>% 
+  mutate(research_areas = str_trim(research_areas, "both")) %>% 
+  group_by(id) %>% 
+  mutate(n_fields = length(organisation_full)) %>% ungroup() %>% select(-id) %>% 
+  mutate(frac_fields = 1 / n_fields) %>% 
+  # filter(UT == "WOS:000286815100004" | UT == "WOS:000356603200004") %>% 
+  group_by(UT, organisation_full, research_areas, frac) %>% 
+  summarise(count = sum(frac_fields)) %>% ungroup() %>% 
+  group_by(organisation_full, research_areas) %>% 
+  mutate(frac_frac = frac * count) %>% 
+  ungroup() %>% 
+  group_by(organisation_full, research_areas) %>% 
+  summarise(frac_frac_frac = sum(frac_frac)) %>% ungroup() %>% 
+  pivot_wider(values_from = "frac_frac_frac", names_from = "research_areas") 
+
+data <- data %>% left_join(df1)
+
+df1 <- data_frac %>% 
+  group_by(organisation_full, field) %>% 
+  summarise(count = sum(frac)) %>% 
+  pivot_wider(values_from = "count", names_from = "field") %>% 
+  ungroup() 
+
+data <- data %>% left_join(df1)
+
+# Фракционализация TC
+df1 <- data_frac %>% select(UT, organisation_full, frac, TC) %>% 
+  # filter(UT == "WOS:000286815100004" | UT == "WOS:000356603200004" | UT == "WOS:000085344600006") %>% 
+  mutate(TC_f = TC * frac) %>% 
+  # group_by(organisation_full) %>% 
+  # mutate(pp = length(unique(UT))) %>% ungroup() %>% 
+  group_by(organisation_full, UT) %>% 
+  summarise(TC_fsum = sum(TC_f, na.rm = TRUE)) %>% ungroup() %>% 
+  group_by(organisation_full) %>% 
+  summarise(TC_frac_mean = mean(TC_fsum, na.rm = TRUE))
+
+data <- data %>% left_join(df1)
+
+# Фракционализация mncs
+df1 <- data_frac %>% select(UT, organisation_full, frac, mncs) %>% 
+  # filter(UT == "WOS:000286815100004" | UT == "WOS:000356603200004" | UT == "WOS:000085344600006") %>% 
+  mutate(mncs_f = mncs * frac) %>% 
+  # group_by(organisation_full) %>% 
+  # mutate(pp = length(unique(UT))) %>% ungroup() %>% 
+  group_by(organisation_full, UT) %>% 
+  summarise(mncs_fsum = sum(mncs_f, na.rm = TRUE)) %>% ungroup() %>% 
+  group_by(organisation_full) %>% 
+  summarise(mncs_frac_mean = mean(mncs_fsum, na.rm = TRUE))
+
+data <- data %>% left_join(df1)
+
+## Фракционализация top_
+
+df1 <- data_frac %>% select(UT, organisation_full, frac, starts_with("top_")) %>% 
+  # filter(UT == "WOS:000286815100004" | UT == "WOS:000356603200004" | UT == "WOS:000085344600006") %>% 
+  mutate(top_1_fr = top_1 * frac,
+         top_10_fr = top_10 * frac,
+         top_25_fr = top_25 * frac,
+         top_50_fr = top_50 * frac) %>% 
+  group_by(organisation_full) %>% 
+  summarise(top_1_fr = sum(top_1_fr),
+            top_10_fr = sum(top_10_fr),
+            top_25_fr = sum(top_25_fr),
+            top_50_fr = sum(top_50_fr))
+
+data <- data %>% left_join(df1)
+
+df1 <- data_frac %>% 
+  group_by(organisation_full, collab_type) %>% 
+  summarise(count = sum(frac)) %>% 
+  pivot_wider(values_from = "count", names_from = "collab_type") %>% 
+  ungroup() 
+
+data <- data %>% left_join(df1)
+
+write_csv(data, "data_frac_2001_2010.csv")
+```
+
+
+# 2011-2020 Версия датасета с фракционализацией
+
+```{r}
+data_frac <- data_kat %>% filter(!is.na(organisation_full)) %>% 
+  filter(year_group == "2011-2020") %>% 
+  ## ФРАКЦИОНАЛИЗАЦИЯ
+  group_by(UT) %>% 
+  mutate(n_auth = length(organisation_full), .after = "organisation_full") %>% 
+  ungroup() %>% 
+  mutate(frac = 1 / n_auth, .after = "organisation_full")
+
+df1 <- data_frac %>% 
+  group_by(organisation_full) %>% 
+  summarise(total_pub = sum(frac),
+            country = paste(sort(unique(country)),collapse="; "),
+            region = paste(sort(unique(region)),collapse="; "))
+
+data <- df1
+
+df1 <- data_frac %>% 
+  group_by(organisation_full, Q) %>% 
+  summarise(count = sum(frac)) %>% 
+  pivot_wider(values_from = "count", names_from = "Q") %>% 
+  ungroup() %>% 
+  select(organisation_full, `Q1`, `Q2`, `Q3`, `Q4`, `NA`) 
+
+
+df3 <- df1
+
+data <- data %>% left_join(df3)
+
+df1 <- data_frac %>% select(UT, organisation_full, frac, research_areas) %>% 
+  mutate(id = row_number()) %>% 
+  separate_rows(research_areas, sep = ";") %>% 
+  mutate(research_areas = str_trim(research_areas, "both")) %>% 
+  group_by(id) %>% 
+  mutate(n_fields = length(organisation_full)) %>% ungroup() %>% select(-id) %>% 
+  mutate(frac_fields = 1 / n_fields) %>% 
+  # filter(UT == "WOS:000286815100004" | UT == "WOS:000356603200004") %>% 
+  group_by(UT, organisation_full, research_areas, frac) %>% 
+  summarise(count = sum(frac_fields)) %>% ungroup() %>% 
+  group_by(organisation_full, research_areas) %>% 
+  mutate(frac_frac = frac * count) %>% 
+  ungroup() %>% 
+  group_by(organisation_full, research_areas) %>% 
+  summarise(frac_frac_frac = sum(frac_frac)) %>% ungroup() %>% 
+  pivot_wider(values_from = "frac_frac_frac", names_from = "research_areas") 
+
+data <- data %>% left_join(df1)
+
+df1 <- data_frac %>% 
+  group_by(organisation_full, field) %>% 
+  summarise(count = sum(frac)) %>% 
+  pivot_wider(values_from = "count", names_from = "field") %>% 
+  ungroup() 
+
+data <- data %>% left_join(df1)
+
+# Фракционализация TC
+df1 <- data_frac %>% select(UT, organisation_full, frac, TC) %>% 
+  # filter(UT == "WOS:000286815100004" | UT == "WOS:000356603200004" | UT == "WOS:000085344600006") %>% 
+  mutate(TC_f = TC * frac) %>% 
+  # group_by(organisation_full) %>% 
+  # mutate(pp = length(unique(UT))) %>% ungroup() %>% 
+  group_by(organisation_full, UT) %>% 
+  summarise(TC_fsum = sum(TC_f, na.rm = TRUE)) %>% ungroup() %>% 
+  group_by(organisation_full) %>% 
+  summarise(TC_frac_mean = mean(TC_fsum, na.rm = TRUE))
+
+data <- data %>% left_join(df1)
+
+# Фракционализация mncs
+df1 <- data_frac %>% select(UT, organisation_full, frac, mncs) %>% 
+  # filter(UT == "WOS:000286815100004" | UT == "WOS:000356603200004" | UT == "WOS:000085344600006") %>% 
+  mutate(mncs_f = mncs * frac) %>% 
+  # group_by(organisation_full) %>% 
+  # mutate(pp = length(unique(UT))) %>% ungroup() %>% 
+  group_by(organisation_full, UT) %>% 
+  summarise(mncs_fsum = sum(mncs_f, na.rm = TRUE)) %>% ungroup() %>% 
+  group_by(organisation_full) %>% 
+  summarise(mncs_frac_mean = mean(mncs_fsum, na.rm = TRUE))
+
+data <- data %>% left_join(df1)
+
+## Фракционализация top_
+
+df1 <- data_frac %>% select(UT, organisation_full, frac, starts_with("top_")) %>% 
+  # filter(UT == "WOS:000286815100004" | UT == "WOS:000356603200004" | UT == "WOS:000085344600006") %>% 
+  mutate(top_1_fr = top_1 * frac,
+         top_10_fr = top_10 * frac,
+         top_25_fr = top_25 * frac,
+         top_50_fr = top_50 * frac) %>% 
+  group_by(organisation_full) %>% 
+  summarise(top_1_fr = sum(top_1_fr),
+            top_10_fr = sum(top_10_fr),
+            top_25_fr = sum(top_25_fr),
+            top_50_fr = sum(top_50_fr))
+
+data <- data %>% left_join(df1)
+
+df1 <- data_frac %>% 
+  group_by(organisation_full, collab_type) %>% 
+  summarise(count = sum(frac)) %>% 
+  pivot_wider(values_from = "count", names_from = "collab_type") %>% 
+  ungroup() 
+
+data <- data %>% left_join(df1)
+
+write_csv(data, "data_frac_2011_2020.csv")
+```
+
+# 1990 Версия датасета с фракционализацией
+
+```{r}
+data_frac <- data_kat %>% filter(!is.na(organisation_full)) %>% 
+  filter(year == 1990) %>% 
+  ## ФРАКЦИОНАЛИЗАЦИЯ
+  group_by(UT) %>% 
+  mutate(n_auth = length(organisation_full), .after = "organisation_full") %>% 
+  ungroup() %>% 
+  mutate(frac = 1 / n_auth, .after = "organisation_full")
+
+df1 <- data_frac %>% 
+  group_by(organisation_full) %>% 
+  summarise(total_pub = sum(frac),
+            country = paste(sort(unique(country)),collapse="; "),
+            region = paste(sort(unique(region)),collapse="; "))
+
+data <- df1
+
+df1 <- data_frac %>% 
+  group_by(organisation_full, Q) %>% 
+  summarise(count = sum(frac)) %>% 
+  pivot_wider(values_from = "count", names_from = "Q") %>% 
+  ungroup() %>% 
+  select(organisation_full, `Q1`, `Q2`, `Q3`, `Q4`, `NA`) 
+
+
+df3 <- df1
+
+data <- data %>% left_join(df3)
+
+df1 <- data_frac %>% select(UT, organisation_full, frac, research_areas) %>% 
+  mutate(id = row_number()) %>% 
+  separate_rows(research_areas, sep = ";") %>% 
+  mutate(research_areas = str_trim(research_areas, "both")) %>% 
+  group_by(id) %>% 
+  mutate(n_fields = length(organisation_full)) %>% ungroup() %>% select(-id) %>% 
+  mutate(frac_fields = 1 / n_fields) %>% 
+  # filter(UT == "WOS:000286815100004" | UT == "WOS:000356603200004") %>% 
+  group_by(UT, organisation_full, research_areas, frac) %>% 
+  summarise(count = sum(frac_fields)) %>% ungroup() %>% 
+  group_by(organisation_full, research_areas) %>% 
+  mutate(frac_frac = frac * count) %>% 
+  ungroup() %>% 
+  group_by(organisation_full, research_areas) %>% 
+  summarise(frac_frac_frac = sum(frac_frac)) %>% ungroup() %>% 
+  pivot_wider(values_from = "frac_frac_frac", names_from = "research_areas") 
+
+data <- data %>% left_join(df1)
+
+df1 <- data_frac %>% 
+  group_by(organisation_full, field) %>% 
+  summarise(count = sum(frac)) %>% 
+  pivot_wider(values_from = "count", names_from = "field") %>% 
+  ungroup() 
+
+data <- data %>% left_join(df1)
+
+# Фракционализация TC
+df1 <- data_frac %>% select(UT, organisation_full, frac, TC) %>% 
+  # filter(UT == "WOS:000286815100004" | UT == "WOS:000356603200004" | UT == "WOS:000085344600006") %>% 
+  mutate(TC_f = TC * frac) %>% 
+  # group_by(organisation_full) %>% 
+  # mutate(pp = length(unique(UT))) %>% ungroup() %>% 
+  group_by(organisation_full, UT) %>% 
+  summarise(TC_fsum = sum(TC_f, na.rm = TRUE)) %>% ungroup() %>% 
+  group_by(organisation_full) %>% 
+  summarise(TC_frac_mean = mean(TC_fsum, na.rm = TRUE))
+
+data <- data %>% left_join(df1)
+
+# Фракционализация mncs
+df1 <- data_frac %>% select(UT, organisation_full, frac, mncs) %>% 
+  # filter(UT == "WOS:000286815100004" | UT == "WOS:000356603200004" | UT == "WOS:000085344600006") %>% 
+  mutate(mncs_f = mncs * frac) %>% 
+  # group_by(organisation_full) %>% 
+  # mutate(pp = length(unique(UT))) %>% ungroup() %>% 
+  group_by(organisation_full, UT) %>% 
+  summarise(mncs_fsum = sum(mncs_f, na.rm = TRUE)) %>% ungroup() %>% 
+  group_by(organisation_full) %>% 
+  summarise(mncs_frac_mean = mean(mncs_fsum, na.rm = TRUE))
+
+data <- data %>% left_join(df1)
+
+## Фракционализация top_
+
+df1 <- data_frac %>% select(UT, organisation_full, frac, starts_with("top_")) %>% 
+  # filter(UT == "WOS:000286815100004" | UT == "WOS:000356603200004" | UT == "WOS:000085344600006") %>% 
+  mutate(top_1_fr = top_1 * frac,
+         top_10_fr = top_10 * frac,
+         top_25_fr = top_25 * frac,
+         top_50_fr = top_50 * frac) %>% 
+  group_by(organisation_full) %>% 
+  summarise(top_1_fr = sum(top_1_fr),
+            top_10_fr = sum(top_10_fr),
+            top_25_fr = sum(top_25_fr),
+            top_50_fr = sum(top_50_fr))
+
+data <- data %>% left_join(df1)
+
+df1 <- data_frac %>% 
+  group_by(organisation_full, collab_type) %>% 
+  summarise(count = sum(frac)) %>% 
+  pivot_wider(values_from = "count", names_from = "collab_type") %>% 
+  ungroup() 
+
+data <- data %>% left_join(df1)
+
+write_csv(data, "data_frac_1990.csv")
+```
+
+# 2020 Версия датасета с фракционализацией
+
+```{r}
+data_frac <- data_kat %>% filter(!is.na(organisation_full)) %>% 
+  filter(year == 2020) %>% 
+  ## ФРАКЦИОНАЛИЗАЦИЯ
+  group_by(UT) %>% 
+  mutate(n_auth = length(organisation_full), .after = "organisation_full") %>% 
+  ungroup() %>% 
+  mutate(frac = 1 / n_auth, .after = "organisation_full")
+
+df1 <- data_frac %>% 
+  group_by(organisation_full) %>% 
+  summarise(total_pub = sum(frac),
+            country = paste(sort(unique(country)),collapse="; "),
+            region = paste(sort(unique(region)),collapse="; "))
+
+data <- df1
+
+df1 <- data_frac %>% 
+  group_by(organisation_full, Q) %>% 
+  summarise(count = sum(frac)) %>% 
+  pivot_wider(values_from = "count", names_from = "Q") %>% 
+  ungroup() %>% 
+  select(organisation_full, `Q1`, `Q2`, `Q3`, `Q4`, `NA`) 
+
+
+df3 <- df1
+
+data <- data %>% left_join(df3)
+
+df1 <- data_frac %>% select(UT, organisation_full, frac, research_areas) %>% 
+  mutate(id = row_number()) %>% 
+  separate_rows(research_areas, sep = ";") %>% 
+  mutate(research_areas = str_trim(research_areas, "both")) %>% 
+  group_by(id) %>% 
+  mutate(n_fields = length(organisation_full)) %>% ungroup() %>% select(-id) %>% 
+  mutate(frac_fields = 1 / n_fields) %>% 
+  # filter(UT == "WOS:000286815100004" | UT == "WOS:000356603200004") %>% 
+  group_by(UT, organisation_full, research_areas, frac) %>% 
+  summarise(count = sum(frac_fields)) %>% ungroup() %>% 
+  group_by(organisation_full, research_areas) %>% 
+  mutate(frac_frac = frac * count) %>% 
+  ungroup() %>% 
+  group_by(organisation_full, research_areas) %>% 
+  summarise(frac_frac_frac = sum(frac_frac)) %>% ungroup() %>% 
+  pivot_wider(values_from = "frac_frac_frac", names_from = "research_areas") 
+
+data <- data %>% left_join(df1)
+
+df1 <- data_frac %>% 
+  group_by(organisation_full, field) %>% 
+  summarise(count = sum(frac)) %>% 
+  pivot_wider(values_from = "count", names_from = "field") %>% 
+  ungroup() 
+
+data <- data %>% left_join(df1)
+
+# Фракционализация TC
+df1 <- data_frac %>% select(UT, organisation_full, frac, TC) %>% 
+  # filter(UT == "WOS:000286815100004" | UT == "WOS:000356603200004" | UT == "WOS:000085344600006") %>% 
+  mutate(TC_f = TC * frac) %>% 
+  # group_by(organisation_full) %>% 
+  # mutate(pp = length(unique(UT))) %>% ungroup() %>% 
+  group_by(organisation_full, UT) %>% 
+  summarise(TC_fsum = sum(TC_f, na.rm = TRUE)) %>% ungroup() %>% 
+  group_by(organisation_full) %>% 
+  summarise(TC_frac_mean = mean(TC_fsum, na.rm = TRUE))
+
+data <- data %>% left_join(df1)
+
+# Фракционализация mncs
+df1 <- data_frac %>% select(UT, organisation_full, frac, mncs) %>% 
+  # filter(UT == "WOS:000286815100004" | UT == "WOS:000356603200004" | UT == "WOS:000085344600006") %>% 
+  mutate(mncs_f = mncs * frac) %>% 
+  # group_by(organisation_full) %>% 
+  # mutate(pp = length(unique(UT))) %>% ungroup() %>% 
+  group_by(organisation_full, UT) %>% 
+  summarise(mncs_fsum = sum(mncs_f, na.rm = TRUE)) %>% ungroup() %>% 
+  group_by(organisation_full) %>% 
+  summarise(mncs_frac_mean = mean(mncs_fsum, na.rm = TRUE))
+
+data <- data %>% left_join(df1)
+
+## Фракционализация top_
+
+df1 <- data_frac %>% select(UT, organisation_full, frac, starts_with("top_")) %>% 
+  # filter(UT == "WOS:000286815100004" | UT == "WOS:000356603200004" | UT == "WOS:000085344600006") %>% 
+  mutate(top_1_fr = top_1 * frac,
+         top_10_fr = top_10 * frac,
+         top_25_fr = top_25 * frac,
+         top_50_fr = top_50 * frac) %>% 
+  group_by(organisation_full) %>% 
+  summarise(top_1_fr = sum(top_1_fr),
+            top_10_fr = sum(top_10_fr),
+            top_25_fr = sum(top_25_fr),
+            top_50_fr = sum(top_50_fr))
+
+data <- data %>% left_join(df1)
+
+df1 <- data_frac %>% 
+  group_by(organisation_full, collab_type) %>% 
+  summarise(count = sum(frac)) %>% 
+  pivot_wider(values_from = "count", names_from = "collab_type") %>% 
+  ungroup() 
+
+data <- data %>% left_join(df1)
+
+write_csv(data, "data_frac_2020.csv")
 ```
