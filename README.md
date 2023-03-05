@@ -1,7 +1,7 @@
 ## Russian Studies
 
-exploratory analysis page: https://hellche.github.io/russian_studies/
+Exploratory analysis page: https://hellche.github.io/russian_studies/
 
-`_clean`: Data preprocessing
+`_clean`: data preprocessing code
 
-`.qmd - files`: Code for exploratory analysis page (figures and tables)
+`index.qmd, about.qmd`: code for figures and tables
