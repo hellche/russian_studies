@@ -1,4 +1,4 @@
-## Russian studies in the English-using academic world, over the long term (WoS, 1990-2020)
+## Russian studies in the English-using academic world, over the long term (Web of Science, 1990-2020)
 
 Exploratory analysis page: https://hellche.github.io/russian_studies/
 
