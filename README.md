@@ -7,3 +7,5 @@ This project aims to identify which universities worldwide are producing scienti
 `_clean`: data preprocessing code
 
 `index.qmd, about.qmd`: code for figures and tables
+
+`figs_for_report`: Figures for the report \[in `.tiff`\]
