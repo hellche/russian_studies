@@ -178,6 +178,7 @@ Fig 1 Использованы сущности, где статья запис�
 На Fig 1 видно, что публикации в \['SSCI'\] на протяжение 1990-2007 годов варьировались в диапазоне до \~400 публикаций в год. После 2008 года рубеж в 400 публикаций стабильно преодолен и количество публикаций в год нарастало вплоть до \~600 в 2020.
 
 ```{r}
+#| eval = FALSE 
 df <- data %>% distinct(UT, .keep_all = TRUE) %>% 
   
   # split fields
@@ -232,7 +233,6 @@ ggplot(df, aes(x = year)) +
 ```
 
 ```{r fig1}
-#| eval = FALSE 
 df <- data %>% distinct(UT, .keep_all = TRUE) %>% 
   
   # split fields
@@ -279,7 +279,7 @@ p2 <- ggplot(df, aes(x = year)) +
   facet_wrap(~field, nrow = 1) +
   labs(y = "change to 1990") +
   guides(fill = guide_legend(keyheight = 0.8, keywidth = 0.8)) + 
-  labs(fill = "") +
+  labs(fill = "", title = "Fig 1: Число статей + динамика") +
   theme_test() +
   theme(panel.grid = element_blank(),
         axis.title.x = element_blank(),
@@ -291,13 +291,15 @@ p2 <- ggplot(df, aes(x = year)) +
         legend.position = "none")
 p1/p2
 
-ggsave(filename = "Fig1.tiff",
+ggsave(filename = "figs_for_report/Fig1.tiff",
        family="Helvetica",
        units = "mm", dpi = 600,  width = 174,
        height = 100)
 ```
 
 ```{r fig1v2}
+
+#| eval = FALSE 
 df <- data %>% distinct(UT, .keep_all = TRUE) %>% 
   
   # split fields
@@ -318,7 +320,7 @@ p1 <- ggplot(df, aes(x = year)) +
   #       breaks = seq(min(df$year), max(df$year), by = 1), 
   #       expand = c(0,0)) +
   facet_wrap(~field, nrow = 1) +
-  labs(y = "n") +
+  labs(y = "n", title = "Fig 1: Число статей + динамика") +
   theme_test() +
   theme(panel.grid = element_blank(),
         axis.title.x = element_blank(),
@@ -352,7 +354,7 @@ p2 <- ggplot(df, aes(x = year)) +
         strip.background = element_rect(fill = NA),
         strip.text = element_text(colour = 'black', size = 8),
         legend.position = "none")
-p1/p2
+p1/p2 
 
 ggsave(filename = "Fig1_v2.pdf",
        family="Helvetica",
@@ -361,6 +363,7 @@ ggsave(filename = "Fig1_v2.pdf",
 ```
 
 ```{r fig1v3}
+#| eval = FALSE 
 df <- data %>% distinct(UT, .keep_all = TRUE) %>% 
   
   # split fields
@@ -518,7 +521,7 @@ data %>% distinct(UT, .keep_all = TRUE) %>%
         axis.text.y = element_text(size = 8),
         legend.justification = "top")
 
-ggsave(filename = "Fig2.tiff",
+ggsave(filename = "figs_for_report/Fig2.tiff",
        family="Helvetica",
        units = "mm", dpi = 600,  width = 174,
        height = 86)
@@ -878,6 +881,7 @@ subplot(style(ggplotly(p1), showlegend = F),
 ```
 
 ```{r fig5ab}
+#| eval = FALSE 
 df1 <- data %>% distinct(UT, region, .keep_all = TRUE) %>% 
   filter(region != "Unknown")  %>% 
   group_by(year, region) %>% count() %>% ungroup() %>% 
@@ -927,7 +931,7 @@ p2 <- df2 %>% mutate(perc = perc * 100) %>%
         legend.justification = "top")
 
 p1 + p2
-ggsave(filename = "Fig5ab.tiff",
+ggsave(filename = "figs_for_report/Fig5ab.tiff",
        family="Helvetica",
        units = "mm", dpi = 600,  width = 174,
        height = 72)
@@ -1018,7 +1022,7 @@ ggplot(df, aes(x = region, y = perc, fill = research_areas)) +
         legend.justification = "top")
 
 
-ggsave(filename = "Fig6.tiff",
+ggsave(filename = "figs_for_report/Fig6.tiff",
        family="Helvetica",
        units = "mm", dpi = 600,  width = 174,
        height = 86)
@@ -1359,7 +1363,7 @@ p2 <- ggplot(df2, aes(x = research_areas, y = n)) +
 
 p2 + p1
 
-ggsave(filename = "Fig8a_v2.tiff",
+ggsave(filename = "figs_for_report/Fig8a_v2.tiff",
        family="Helvetica",
        units = "mm", dpi = 600,  width = 174,
        height = 62)
