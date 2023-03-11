@@ -253,7 +253,7 @@ p1 <- ggplot(df, aes(x = year)) +
   #       breaks = seq(min(df$year), max(df$year), by = 1), 
   #       expand = c(0,0)) +
   facet_wrap(~field, nrow = 1) +
-  labs(y = "count") +
+  labs(y = "count", title = "Fig 1: Число статей + динамика") +
   theme_test() +
   theme(panel.grid = element_blank(),
         axis.title.x = element_blank(),
@@ -279,7 +279,7 @@ p2 <- ggplot(df, aes(x = year)) +
   facet_wrap(~field, nrow = 1) +
   labs(y = "change to 1990") +
   guides(fill = guide_legend(keyheight = 0.8, keywidth = 0.8)) + 
-  labs(fill = "", title = "Fig 1: Число статей + динамика") +
+  labs(fill = "") +
   theme_test() +
   theme(panel.grid = element_blank(),
         axis.title.x = element_blank(),
@@ -298,7 +298,6 @@ ggsave(filename = "figs_for_report/Fig1.tiff",
 ```
 
 ```{r fig1v2}
-
 #| eval = FALSE 
 df <- data %>% distinct(UT, .keep_all = TRUE) %>% 
   
