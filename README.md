@@ -2,10 +2,8 @@
 
 This project aims to identify which universities worldwide are producing scientific knowledge about Russia in the fields of Social Sciences and Humanities. Specifically, we are mapping research published in English and indexed in Web of Science over the past 30 years. As part of this project, my role is to analyze the data, ask new questions, and conduct descriptive analyses to identify patterns.
 
-**Exploratory analysis page**: https://hellche.github.io/russian_studies/
+**Exploratory analysis page (Figures + Tables)**: https://hellche.github.io/russian_studies/
 
 `_clean`: data preprocessing code
-
-`index.qmd, about.qmd`: code for figures and tables
 
 `figs_for_report`: Figures for the report \[in `.tiff`\]
