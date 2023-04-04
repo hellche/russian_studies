@@ -4,6 +4,8 @@ This project aims to identify which universities worldwide are producing scienti
 
 **Exploratory analysis page (Figures + Tables)**: https://hellche.github.io/russian_studies/
 
+**Methodology and Project Overview**: https://russiaresearch.org/project-overview/
+
 `_clean`: data preprocessing code
 
 `figs_for_report`: Figures for the report \[in `.tiff`\]
